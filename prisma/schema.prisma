@@ -12,7 +12,88 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
 model User {
-  id Int @id @default(autoincrement())
-  fullName String @map("full_name")
+  id          String        @id @default(cuid())
+  username    String        @unique
+  password    String
+  nama        String
+  email       String        @unique
+  noTelp      String
+  alamat      String
+  role        String
+  is_verified Boolean       @default(false)
+  Notifikasi  Notifikasi[]
+  otp         Otp[]
+}
+
+model Pasien {
+  id_pasien    String           @id @default(cuid())
+  nama_pasien  String
+  no_telp      String
+  alamat       String
+  JanjiTemu    JanjiTemu[]
+  Konsultasi   Konsultasi_Chat[]
+  RekamMedis   Rekam_Medis?
+}
+
+model JanjiTemu {
+  id_janji      String        @id @default(cuid())
+  id_pasien     String
+  tanggal_waktu DateTime
+  keluhan       String
+  status        String
+  dokter        String        @default("drg.Irna")
+  created_at    DateTime      @default(now())
+  pasien        Pasien        @relation(fields: [id_pasien], references: [id_pasien])
+  Pembayaran    Pembayaran?
+}
+
+model Konsultasi_Chat {
+  id_chat       String        @id @default(cuid())
+  id_pasien     String
+  waktu_mulai   DateTime
+  waktu_selesai DateTime?
+  status        String
+  pasien        Pasien        @relation(fields: [id_pasien], references: [id_pasien])
+}
+
+model Rekam_Medis {
+  id_pasien    String         @id
+  nama_pasien  String
+  no_telp      String
+  alamat       String
+  pasien       Pasien         @relation(fields: [id_pasien], references: [id_pasien])
+}
+
+model Jenis_Tindakan {
+  id_tindakan    String      @id @default(cuid())
+  nama_tindakan  String
+  harga          Int
+}
+
+model Pembayaran {
+  id_pembayaran     String      @id @default(cuid())
+  id_janji          String      @unique
+  metode_pembayaran String
+  status            String
+  tanggal_bayar     DateTime
+  janjiTemu         JanjiTemu   @relation(fields: [id_janji], references: [id_janji])
+}
+
+model Notifikasi {
+  id_notifikasi String   @id @default(cuid())
+  judul         String
+  pesan         String
+  user_id       String
+  user          User     @relation(fields: [user_id], references: [id])
+}
+
+model Otp {
+  id_otp      String   @id @default(cuid())
+  id_user     String
+  kode_otp    String
+  expiry_time DateTime
+  is_used     Boolean  @default(false)
+  user        User     @relation(fields: [id_user], references: [id])
 }

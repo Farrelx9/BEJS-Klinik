@@ -16,10 +16,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
+app.set("views", __dirname + "/views");
 app.use(routes);
 
 app.get("/", (req, res) => {
-  res.send(`<h1 align="center">Welcome To API Cahaya Kreativ</h1>`);
+  res.send(`<h1 align="center">Welcome To Klinik drg.Irna</h1>`);
 });
 
 // 404 error handler
