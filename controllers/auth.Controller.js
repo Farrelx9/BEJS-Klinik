@@ -292,8 +292,6 @@ exports.getProfile = async (req, res) => {
         alamat: true,
         role: true,
         is_verified: true,
-        createdAt: true,
-        updatedAt: true,
       },
     });
     if (!user) {
@@ -310,7 +308,7 @@ exports.getProfile = async (req, res) => {
 // Change Password (user sudah login)
 exports.changePassword = async (req, res) => {
   const userId = req.user.userId; // dari JWT middleware
-  const { oldPassword, newPassword } = req.body;
+  const { oldPassword, newPassword, kode_otp } = req.body;
 
   try {
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -324,6 +322,22 @@ exports.changePassword = async (req, res) => {
       return res.status(400).json({ message: "Password lama salah" });
     }
 
+    // Verifikasi OTP
+    const otp = await prisma.otp.findFirst({
+      where: {
+        id_user: userId,
+        kode_otp,
+        is_used: false,
+        expiry_time: { gte: new Date() },
+      },
+    });
+
+    if (!otp) {
+      return res
+        .status(400)
+        .json({ message: "OTP tidak valid atau sudah kadaluarsa" });
+    }
+
     // Hash password baru
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
@@ -333,7 +347,84 @@ exports.changePassword = async (req, res) => {
       data: { password: hashedPassword },
     });
 
+    // Update OTP menjadi used
+    await prisma.otp.update({
+      where: { id_otp: otp.id_otp },
+      data: { is_used: true },
+    });
+
+    // Kirim email notifikasi perubahan password
+    try {
+      const html = getRenderedHtml(`password-changed`, {
+        nama: user.nama,
+        email: user.email,
+      });
+
+      await sendEmail({
+        to: user.email,
+        subject: "Password Berhasil Diubah",
+        html,
+      });
+    } catch (error) {
+      console.error("Failed to send email:", error);
+    }
+
     res.json({ message: "Password berhasil diubah" });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Terjadi kesalahan", error: error.message });
+  }
+};
+
+// Request OTP untuk perubahan password
+exports.requestChangePasswordOtp = async (req, res) => {
+  const userId = req.user.userId;
+  const { oldPassword } = req.body;
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ message: "User tidak ditemukan" });
+    }
+
+    // Cek password lama
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Password lama salah" });
+    }
+
+    // Generate kode OTP
+    const kode_otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry_time = new Date(Date.now() + 10 * 60 * 1000); // 10 menit
+
+    // Simpan OTP ke database
+    await prisma.otp.create({
+      data: {
+        id_user: userId,
+        kode_otp,
+        expiry_time,
+        is_used: false,
+      },
+    });
+
+    // Kirim OTP ke email user
+    try {
+      const html = getRenderedHtml(`email-verification`, {
+        nama: user.nama,
+        otp: kode_otp,
+      });
+
+      await sendEmail({
+        to: user.email,
+        subject: "Kode OTP untuk Perubahan Password",
+        html,
+      });
+    } catch (error) {
+      console.error("Failed to send email:", error);
+    }
+
+    res.json({ message: "OTP telah dikirim ke email Anda" });
   } catch (error) {
     res
       .status(500)
