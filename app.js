@@ -17,6 +17,10 @@ app.use(express.urlencoded({ extended: false }));
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 app.set("views", __dirname + "/views");
+
+// Serve static files from uploads directory
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 app.use(routes);
 
 app.get("/", (req, res) => {

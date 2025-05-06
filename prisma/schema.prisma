@@ -14,17 +14,18 @@ datasource db {
 }
 
 model User {
-  id          String        @id @default(cuid())
-  username    String        @unique
-  password    String
-  nama        String
-  email       String        @unique
-  noTelp      String
-  alamat      String
-  role        String
-  is_verified Boolean       @default(false)
-  Notifikasi  Notifikasi[]
-  otp         Otp[]
+  id            String        @id @default(cuid())
+  username      String        @unique
+  password      String
+  nama          String
+  email         String        @unique
+  noTelp        String
+  alamat        String
+  role          String
+  is_verified   Boolean       @default(false)
+  profilePicture String?      // Optional field untuk foto profil
+  Notifikasi    Notifikasi[]
+  otp           Otp[]
 }
 
 model Pasien {
