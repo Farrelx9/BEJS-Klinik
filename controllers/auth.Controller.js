@@ -3,6 +3,8 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const sendEmail = require("../utils/sendEmail");
 const getRenderedHtml = require("../utils/getRenderedHtml");
+const path = require("path");
+const fs = require("fs");
 
 const prisma = new PrismaClient();
 
@@ -292,12 +294,22 @@ exports.getProfile = async (req, res) => {
         alamat: true,
         role: true,
         is_verified: true,
+        profilePicture: true,
       },
     });
     if (!user) {
       return res.status(404).json({ message: "User tidak ditemukan" });
     }
-    res.json({ user });
+
+    // Transform the response to include full URL for profile picture only if it exists
+    const transformedUser = {
+      ...user,
+      profilePicture: user.profilePicture
+        ? `http://localhost:3000/uploads/profile/${user.profilePicture}`
+        : undefined,
+    };
+
+    res.json({ user: transformedUser });
   } catch (error) {
     res
       .status(500)
@@ -426,6 +438,90 @@ exports.requestChangePasswordOtp = async (req, res) => {
 
     res.json({ message: "OTP telah dikirim ke email Anda" });
   } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Terjadi kesalahan", error: error.message });
+  }
+};
+
+// Update Profile
+exports.updateProfile = async (req, res) => {
+  const userId = req.user.userId;
+  const { username, nama, noTelp, alamat } = req.body;
+  const profilePicture = req.file; // dari multer middleware
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ message: "User tidak ditemukan" });
+    }
+
+    // Cek username sudah digunakan atau belum (jika username diubah)
+    if (username && username !== user.username) {
+      const existingUser = await prisma.user.findUnique({
+        where: { username },
+      });
+      if (existingUser) {
+        return res.status(400).json({ message: "Username sudah digunakan" });
+      }
+    }
+
+    // Update data user
+    const updateData = {
+      ...(username && { username }),
+      ...(nama && { nama }),
+      ...(noTelp && { noTelp }),
+      ...(alamat && { alamat }),
+    };
+
+    // Handle profile picture update
+    if (profilePicture) {
+      // Delete old profile picture if exists
+      if (user.profilePicture) {
+        const oldPicturePath = path.join(
+          __dirname,
+          "../uploads/profile",
+          user.profilePicture
+        );
+        try {
+          await fs.promises.unlink(oldPicturePath);
+        } catch (error) {
+          console.error("Error deleting old profile picture:", error);
+        }
+      }
+      updateData.profilePicture = profilePicture.filename;
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true,
+        username: true,
+        nama: true,
+        email: true,
+        noTelp: true,
+        alamat: true,
+        role: true,
+        is_verified: true,
+        profilePicture: true,
+      },
+    });
+
+    // Transform the response to include full URL for profile picture only if it exists
+    const transformedUser = {
+      ...updatedUser,
+      profilePicture: updatedUser.profilePicture
+        ? `http://localhost:3000/uploads/profile/${updatedUser.profilePicture}`
+        : undefined,
+    };
+
+    res.json({
+      message: "Profile berhasil diupdate",
+      user: transformedUser,
+    });
+  } catch (error) {
+    console.error("Error updating profile:", error);
     res
       .status(500)
       .json({ message: "Terjadi kesalahan", error: error.message });
