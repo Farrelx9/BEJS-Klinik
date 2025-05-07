@@ -282,7 +282,10 @@ exports.forgotPassword = async (req, res) => {
 // Get Profile
 exports.getProfile = async (req, res) => {
   try {
-    const userId = req.user.userId; // dari JWT middleware
+    // Get user ID from token
+    const userId = req.user.userId;
+
+    // Get user data
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -297,6 +300,7 @@ exports.getProfile = async (req, res) => {
         profilePicture: true,
       },
     });
+
     if (!user) {
       return res.status(404).json({ message: "User tidak ditemukan" });
     }
