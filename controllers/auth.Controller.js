@@ -30,8 +30,9 @@ exports.register = async (req, res) => {
         password: hashedPassword,
         noTelp,
         alamat,
-        role: "user",
+        role: "pasien",
         is_verified: false,
+        createdAt: new Date(),
       },
     });
 
@@ -44,6 +45,7 @@ exports.register = async (req, res) => {
         kode_otp,
         expiry_time,
         is_used: false,
+        createdAt: new Date(),
       },
     });
 
@@ -126,6 +128,7 @@ exports.sendOtp = async (req, res) => {
         kode_otp,
         expiry_time,
         is_used: false,
+        createdAt: new Date(),
       },
     });
 
@@ -252,6 +255,7 @@ exports.forgotPassword = async (req, res) => {
         kode_otp,
         expiry_time,
         is_used: false,
+        createdAt: new Date(),
       },
     });
 
@@ -298,6 +302,8 @@ exports.getProfile = async (req, res) => {
         role: true,
         is_verified: true,
         profilePicture: true,
+        role: true,
+        createdAt: true,
       },
     });
 
@@ -509,6 +515,7 @@ exports.updateProfile = async (req, res) => {
         role: true,
         is_verified: true,
         profilePicture: true,
+        createdAt: true,
       },
     });
 

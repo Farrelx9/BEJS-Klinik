@@ -23,9 +23,14 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   fileFilter: function (req, file, cb) {
-    // Hanya terima file gambar
-    if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
-      return cb(new Error("Hanya file gambar yang diperbolehkan!"), false);
+    // Regex case-insensitive dan tambah format HEIC
+    if (!file.originalname.match(/\.(jpg|jpeg|png|gif|heic)$/i)) {
+      return cb(
+        new Error(
+          "Hanya file gambar (JPG, JPEG, PNG, GIF, HEIC) yang diperbolehkan!"
+        ),
+        false
+      );
     }
     cb(null, true);
   },
