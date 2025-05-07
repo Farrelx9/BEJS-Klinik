@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,81 +7,32 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  admin
+  dokter
+  pasien
+}
+
 model User {
-  id            String        @id @default(cuid())
-  username      String        @unique
-  password      String
-  nama          String
-  email         String        @unique
-  noTelp        String
-  alamat        String
-  role          String
-  is_verified   Boolean       @default(false)
-  profilePicture String?      // Optional field untuk foto profil
-  Notifikasi    Notifikasi[]
-  otp           Otp[]
-}
+  id             String           @id @default(cuid())
+  username       String           @unique
+  password       String
+  nama           String
+  email          String           @unique
+  noTelp         String
+  alamat         String
+  role           Role             @default(pasien)
+  is_verified    Boolean          @default(false)
+  profilePicture String?
+  createdAt      DateTime         @default(now())
 
-model Pasien {
-  id_pasien    String           @id @default(cuid())
-  nama_pasien  String
-  no_telp      String
-  alamat       String
-  JanjiTemu    JanjiTemu[]
-  Konsultasi   Konsultasi_Chat[]
-  RekamMedis   Rekam_Medis?
-}
-
-model JanjiTemu {
-  id_janji      String        @id @default(cuid())
-  id_pasien     String
-  tanggal_waktu DateTime
-  keluhan       String
-  status        String
-  dokter        String        @default("drg.Irna")
-  created_at    DateTime      @default(now())
-  pasien        Pasien        @relation(fields: [id_pasien], references: [id_pasien])
-  Pembayaran    Pembayaran?
-}
-
-model Konsultasi_Chat {
-  id_chat       String        @id @default(cuid())
-  id_pasien     String
-  waktu_mulai   DateTime
-  waktu_selesai DateTime?
-  status        String
-  pasien        Pasien        @relation(fields: [id_pasien], references: [id_pasien])
-}
-
-model Rekam_Medis {
-  id_pasien    String         @id
-  nama_pasien  String
-  no_telp      String
-  alamat       String
-  pasien       Pasien         @relation(fields: [id_pasien], references: [id_pasien])
-}
-
-model Jenis_Tindakan {
-  id_tindakan    String      @id @default(cuid())
-  nama_tindakan  String
-  harga          Int
-}
-
-model Pembayaran {
-  id_pembayaran     String      @id @default(cuid())
-  id_janji          String      @unique
-  metode_pembayaran String
-  status            String
-  tanggal_bayar     DateTime
-  janjiTemu         JanjiTemu   @relation(fields: [id_janji], references: [id_janji])
-}
-
-model Notifikasi {
-  id_notifikasi String   @id @default(cuid())
-  judul         String
-  pesan         String
-  user_id       String
-  user          User     @relation(fields: [user_id], references: [id])
+  // Relasi
+  otp            Otp[]
+  notifikasi     Notifikasi[]
+  janjiTemu      JanjiTemu[]
+  konsultasiChat Konsultasi_Chat[]
+  riwayat        Riwayat[]
+  rekamMedis     Rekam_Medis[]
 }
 
 model Otp {
@@ -96,5 +41,97 @@ model Otp {
   kode_otp    String
   expiry_time DateTime
   is_used     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
   user        User     @relation(fields: [id_user], references: [id])
+}
+
+model Notifikasi {
+  id_notifikasi String   @id @default(cuid())
+  judul         String
+  pesan         String
+  user_id       String
+  createdAt     DateTime @default(now())
+
+  user          User     @relation(fields: [user_id], references: [id])
+}
+
+model JanjiTemu {
+  id_janji      String   @id @default(cuid())
+  id_pasien     String
+  tanggal_waktu DateTime
+  keluhan       String
+  status        String
+  dokter        String   @default("drg.Irna")
+  createdAt     DateTime @default(now())
+
+  pasien        User     @relation(fields: [id_pasien], references: [id])
+}
+
+model Konsultasi_Chat {
+  id_chat       String   @id @default(cuid())
+  id_pasien     String
+  waktu_mulai   DateTime
+  waktu_selesai DateTime?
+  status        String
+  pesan         String?
+  createdAt     DateTime @default(now())
+
+  pasien        User     @relation(fields: [id_pasien], references: [id])
+  pembayaran    Pembayaran?
+}
+
+model Pembayaran {
+  id_pembayaran     String   @id @default(cuid())
+  id_konsultasi     String   @unique
+  metode_pembayaran String
+  jumlah            Int
+  status            String
+  tanggal_bayar     DateTime?
+  bukti_pembayaran  String?
+  createdAt         DateTime @default(now())
+
+  konsultasiChat    Konsultasi_Chat @relation(fields: [id_konsultasi], references: [id_chat])
+}
+
+model Jenis_Tindakan {
+  id_tindakan    String   @id @default(cuid())
+  nama_tindakan  String
+  deskripsi      String?
+  harga          Int
+  createdAt      DateTime @default(now())
+
+  rekamMedis     Rekam_Medis[]
+}
+
+model Rekam_Medis {
+  id_rekam_medis String   @id @default(cuid())
+  id_pasien      String
+  nama_pasien    String
+  no_telp        String
+  alamat         String
+  keluhan        String
+  diagnosa       String?
+  tindakan       String?
+  resep_obat     String?
+  dokter         String
+  tanggal        DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  // Relasi opsional ke jenis tindakan
+  tindakan_id    String?
+  jenisTindakan  Jenis_Tindakan? @relation(fields: [tindakan_id], references: [id_tindakan])
+
+  pasien         User     @relation(fields: [id_pasien], references: [id])
+}
+
+// Model Riwayat (baru ditambahkan)
+model Riwayat {
+  id_riwayat    String   @id @default(cuid())
+  judul         String
+  pesan         String
+  user_id       String
+  createdAt     DateTime @default(now())
+
+  user          User     @relation(fields: [user_id], references: [id])
 }
