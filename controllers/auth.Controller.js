@@ -3,16 +3,17 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const sendEmail = require("../utils/sendEmail");
 const getRenderedHtml = require("../utils/getRenderedHtml");
-const path = require("path");
-const fs = require("fs");
+// const path = require("path");
+// const fs = require("fs");
 
 const prisma = new PrismaClient();
 
-// Register
+// Register - hanya email & password diperlukan
 exports.register = async (req, res) => {
-  const { username, nama, email, password, noTelp, alamat } = req.body;
+  const { email, password } = req.body;
+
   try {
-    // Cek email sudah terdaftar
+    // Cek apakah email sudah terdaftar
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       return res.status(400).json({ message: "Email sudah terdaftar" });
@@ -24,21 +25,17 @@ exports.register = async (req, res) => {
     // Simpan user baru
     const user = await prisma.user.create({
       data: {
-        username,
-        nama,
         email,
         password: hashedPassword,
-        noTelp,
-        alamat,
         role: "pasien",
         is_verified: false,
         createdAt: new Date(),
       },
     });
 
+    // Generate OTP
     const kode_otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiry_time = new Date(Date.now() + 10 * 60 * 1000);
-
+    const expiry_time = new Date(Date.now() + 10 * 60 * 1000); // OTP berlaku 10 menit
     await prisma.otp.create({
       data: {
         id_user: user.id,
@@ -52,18 +49,22 @@ exports.register = async (req, res) => {
     // Kirim OTP ke email user
     try {
       const html = getRenderedHtml(`email-verification`, {
-        nama: user.nama,
+        nama: email.split("@")[0], // Gunakan bagian awal email sebagai nama default
         otp: kode_otp,
       });
-
       await sendEmail({ to: email, subject: "Your OTP Code", html });
     } catch (error) {
-      console.error("Failed to send email:", error);
+      console.error("Gagal mengirim email:", error);
     }
 
     res.status(201).json({
       message: "Registrasi berhasil, silakan cek email untuk verifikasi OTP",
-      user: { id: user.id, email: user.email, nama: user.nama },
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
     });
   } catch (error) {
     res
@@ -110,7 +111,7 @@ exports.login = async (req, res) => {
 
 // Generate & Send OTP
 exports.sendOtp = async (req, res) => {
-  const { email } = req.body;
+  const { email, purpose } = req.body; // tambahkan 'purpose'
   try {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
@@ -121,13 +122,14 @@ exports.sendOtp = async (req, res) => {
     const kode_otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiry_time = new Date(Date.now() + 10 * 60 * 1000); // 10 menit
 
-    // Simpan OTP ke database
+    // Simpan OTP ke database dengan tambahan informasi purpose
     await prisma.otp.create({
       data: {
         id_user: user.id,
         kode_otp,
         expiry_time,
         is_used: false,
+        purpose: purpose || "register", // bisa "register" atau "forgot_password"
         createdAt: new Date(),
       },
     });
@@ -194,15 +196,63 @@ exports.verifyOtp = async (req, res) => {
   }
 };
 
-// Reset Password (Verifikasi OTP & Ganti Password)
-exports.resetPassword = async (req, res) => {
-  const { email, kode_otp, newPassword } = req.body;
+// Forgot Password - Kirim OTP ke email
+exports.forgotPassword = async (req, res) => {
+  const { email } = req.body;
   try {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       return res.status(404).json({ message: "User tidak ditemukan" });
     }
 
+    // Generate OTP
+    const kode_otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry_time = new Date(Date.now() + 10 * 60 * 1000); // 10 menit
+
+    // Simpan OTP ke database
+    await prisma.otp.create({
+      data: {
+        id_user: user.id,
+        kode_otp,
+        expiry_time,
+        is_used: false,
+        createdAt: new Date(),
+      },
+    });
+
+    // Kirim OTP ke email
+    try {
+      const html = getRenderedHtml(`email-verification`, {
+        nama: user.pasien?.nama || email.split("@")[0],
+        otp: kode_otp,
+      });
+      await sendEmail({
+        to: email,
+        subject: "Reset Password - Kode OTP",
+        html,
+      });
+    } catch (error) {
+      console.error("Gagal mengirim email:", error);
+    }
+
+    res.json({ message: "OTP reset password berhasil dikirim ke email" });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Terjadi kesalahan", error: error.message });
+  }
+};
+
+// Reset Password - Verifikasi OTP
+exports.resetPassword = async (req, res) => {
+  const { email, kode_otp } = req.body;
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ message: "User tidak ditemukan" });
+    }
+
+    // Verifikasi OTP
     const otp = await prisma.otp.findFirst({
       where: {
         id_user: user.id,
@@ -215,22 +265,19 @@ exports.resetPassword = async (req, res) => {
     if (!otp) {
       return res
         .status(400)
-        .json({ message: "OTP tidak valid atau sudah kadaluarsa" });
+        .json({ message: "OTP tidak valid atau kadaluarsa" });
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { password: hashedPassword },
-    });
-
+    // Update OTP menjadi used
     await prisma.otp.update({
       where: { id_otp: otp.id_otp },
       data: { is_used: true },
     });
 
-    res.json({ message: "Password berhasil direset" });
+    res.json({
+      message: "OTP valid, silakan masukkan password baru",
+      email: user.email,
+    });
   } catch (error) {
     res
       .status(500)
@@ -238,44 +285,40 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
-exports.forgotPassword = async (req, res) => {
-  const { email } = req.body;
+// Update Password - Setelah OTP terverifikasi
+exports.updatePassword = async (req, res) => {
+  const { email, newPassword } = req.body;
   try {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       return res.status(404).json({ message: "User tidak ditemukan" });
     }
 
-    const kode_otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiry_time = new Date(Date.now() + 10 * 60 * 1000);
+    // Hash password baru
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    await prisma.otp.create({
-      data: {
-        id_user: user.id,
-        kode_otp,
-        expiry_time,
-        is_used: false,
-        createdAt: new Date(),
-      },
+    // Update password
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
     });
 
-    // Kirim OTP ke email user dengan template EJS
+    // Kirim email notifikasi perubahan password
     try {
-      const html = getRenderedHtml(`email-verification`, {
-        nama: user.nama,
-        otp: kode_otp,
+      const html = getRenderedHtml(`password-changed`, {
+        nama: user.pasien?.nama || email.split("@")[0],
+        email: user.email,
       });
-
       await sendEmail({
-        to: email,
-        subject: "Reset Password - Kode OTP",
+        to: user.email,
+        subject: "Password Berhasil Diubah",
         html,
       });
     } catch (error) {
-      console.error("Failed to send email:", error);
+      console.error("Gagal mengirim email:", error);
     }
 
-    res.json({ message: "OTP reset password berhasil dikirim ke email" });
+    res.json({ message: "Password berhasil diubah" });
   } catch (error) {
     res
       .status(500)
@@ -286,37 +329,36 @@ exports.forgotPassword = async (req, res) => {
 // Get Profile
 exports.getProfile = async (req, res) => {
   try {
-    // Get user ID from token
     const userId = req.user.userId;
 
-    // Get user data
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        username: true,
-        nama: true,
-        email: true,
-        noTelp: true,
-        alamat: true,
-        role: true,
-        is_verified: true,
-        profilePicture: true,
-        role: true,
-        createdAt: true,
-      },
+      include: { pasien: true },
     });
 
     if (!user) {
       return res.status(404).json({ message: "User tidak ditemukan" });
     }
 
-    // Transform the response to include full URL for profile picture only if it exists
     const transformedUser = {
-      ...user,
-      profilePicture: user.profilePicture
-        ? `http://localhost:3000/uploads/profile/${user.profilePicture}`
-        : undefined,
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      is_verified: user.is_verified,
+      pasien: user.pasien
+        ? {
+            id_pasien: user.pasien.id_pasien,
+            nama: user.pasien.nama,
+            noTelp: user.pasien.noTelp,
+            alamat: user.pasien.alamat,
+            tanggal_lahir: user.pasien.tanggal_lahir,
+            jenis_kelamin: user.pasien.jenis_kelamin,
+            profilePicture: user.pasien.profilePicture
+              ? `http://localhost:3000/uploads/profile/${user.pasien.profilePicture}`
+              : undefined,
+          }
+        : null,
+      createdAt: user.createdAt,
     };
 
     res.json({ user: transformedUser });
@@ -457,79 +499,67 @@ exports.requestChangePasswordOtp = async (req, res) => {
 // Update Profile
 exports.updateProfile = async (req, res) => {
   const userId = req.user.userId;
-  const { username, nama, noTelp, alamat } = req.body;
+  const { nama, noTelp, alamat, tanggal_lahir, jenis_kelamin } = req.body;
   const profilePicture = req.file; // dari multer middleware
 
   try {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { pasien: true },
+    });
+
     if (!user) {
       return res.status(404).json({ message: "User tidak ditemukan" });
     }
 
-    // Cek username sudah digunakan atau belum (jika username diubah)
-    if (username && username !== user.username) {
-      const existingUser = await prisma.user.findUnique({
-        where: { username },
+    let updateData = {};
+    if (nama) updateData.nama = nama;
+    if (noTelp) updateData.noTelp = noTelp;
+    if (alamat) updateData.alamat = alamat;
+    if (tanggal_lahir) updateData.tanggal_lahir = new Date(tanggal_lahir);
+    if (jenis_kelamin) updateData.jenis_kelamin = jenis_kelamin;
+    if (profilePicture) updateData.profilePicture = profilePicture.filename;
+
+    // Jika pasien belum ada, buat baru
+    if (!user.pasien) {
+      await prisma.pasien.create({
+        data: {
+          user_id: userId,
+          ...updateData,
+        },
       });
-      if (existingUser) {
-        return res.status(400).json({ message: "Username sudah digunakan" });
-      }
+    } else {
+      await prisma.pasien.update({
+        where: { id_pasien: user.pasien.id_pasien },
+        data: updateData,
+      });
     }
 
-    // Update data user
-    const updateData = {
-      ...(username && { username }),
-      ...(nama && { nama }),
-      ...(noTelp && { noTelp }),
-      ...(alamat && { alamat }),
-    };
-
-    // Handle profile picture update
-    if (profilePicture) {
-      // Delete old profile picture if exists
-      if (user.profilePicture) {
-        const oldPicturePath = path.join(
-          __dirname,
-          "../uploads/profile",
-          user.profilePicture
-        );
-        try {
-          await fs.promises.unlink(oldPicturePath);
-        } catch (error) {
-          console.error("Error deleting old profile picture:", error);
-        }
-      }
-      updateData.profilePicture = profilePicture.filename;
-    }
-
-    const updatedUser = await prisma.user.update({
+    const updatedUser = await prisma.user.findUnique({
       where: { id: userId },
-      data: updateData,
-      select: {
-        id: true,
-        username: true,
-        nama: true,
-        email: true,
-        noTelp: true,
-        alamat: true,
-        role: true,
-        is_verified: true,
-        profilePicture: true,
-        createdAt: true,
-      },
+      include: { pasien: true },
     });
 
-    // Transform the response to include full URL for profile picture only if it exists
-    const transformedUser = {
-      ...updatedUser,
-      profilePicture: updatedUser.profilePicture
-        ? `http://localhost:3000/uploads/profile/${updatedUser.profilePicture}`
-        : undefined,
-    };
-
     res.json({
-      message: "Profile berhasil diupdate",
-      user: transformedUser,
+      message: "Profil berhasil diperbarui",
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        pasien: updatedUser.pasien
+          ? {
+              id_pasien: updatedUser.pasien.id_pasien,
+              nama: updatedUser.pasien.nama,
+              noTelp: updatedUser.pasien.noTelp,
+              alamat: updatedUser.pasien.alamat,
+              tanggal_lahir: updatedUser.pasien.tanggal_lahir,
+              jenis_kelamin: updatedUser.pasien.jenis_kelamin,
+              profilePicture: updatedUser.pasien.profilePicture
+                ? `http://localhost:3000/uploads/profile/${updatedUser.pasien.profilePicture}`
+                : undefined,
+            }
+          : null,
+      },
     });
   } catch (error) {
     console.error("Error updating profile:", error);

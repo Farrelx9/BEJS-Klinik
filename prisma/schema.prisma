@@ -14,25 +14,39 @@ enum Role {
 }
 
 model User {
-  id             String           @id @default(cuid())
-  username       String           @unique
-  password       String
+  id            String    @id @default(cuid())
+  password      String
+  email         String    @unique
+  role          Role      @default(pasien)
+  is_verified   Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+
+  // Relasi satu-satu ke Pasien
+  pasien        Pasien?   @relation()
+  otp           Otp[]
+}
+
+model Pasien {
+  id_pasien      String           @id @default(cuid())
+  user_id        String           @unique
   nama           String
-  email          String           @unique
   noTelp         String
   alamat         String
-  role           Role             @default(pasien)
-  is_verified    Boolean          @default(false)
-  profilePicture String?
+  tanggal_lahir  DateTime?
+  jenis_kelamin  String?
+  profilePicture String?          // Pindah dari User ke Pasien
   createdAt      DateTime         @default(now())
 
-  // Relasi
-  otp            Otp[]
-  notifikasi     Notifikasi[]
+  // Relasi ke User
+  user           User             @relation(fields: [user_id], references: [id])
+
+  // Semua relasi dari pasien ke model lain
   janjiTemu      JanjiTemu[]
   konsultasiChat Konsultasi_Chat[]
-  riwayat        Riwayat[]
   rekamMedis     Rekam_Medis[]
+  pembayaran     Pembayaran[]
+  notifikasi     Notifikasi[]
+  riwayat        Riwayat[]
 }
 
 model Otp {
@@ -41,6 +55,7 @@ model Otp {
   kode_otp    String
   expiry_time DateTime
   is_used     Boolean  @default(false)
+  purpose     String?
   createdAt   DateTime @default(now())
 
   user        User     @relation(fields: [id_user], references: [id])
@@ -50,10 +65,20 @@ model Notifikasi {
   id_notifikasi String   @id @default(cuid())
   judul         String
   pesan         String
-  user_id       String
+  id_pasien     String
   createdAt     DateTime @default(now())
 
-  user          User     @relation(fields: [user_id], references: [id])
+  pasien        Pasien   @relation(fields: [id_pasien], references: [id_pasien])
+}
+
+model Riwayat {
+  id_riwayat    String   @id @default(cuid())
+  judul         String
+  pesan         String
+  id_pasien     String
+  createdAt     DateTime @default(now())
+
+  pasien        Pasien   @relation(fields: [id_pasien], references: [id_pasien])
 }
 
 model JanjiTemu {
@@ -65,7 +90,7 @@ model JanjiTemu {
   dokter        String   @default("drg.Irna")
   createdAt     DateTime @default(now())
 
-  pasien        User     @relation(fields: [id_pasien], references: [id])
+  pasien      Pasien @relation(fields: [id_pasien], references: [id_pasien])
 }
 
 model Konsultasi_Chat {
@@ -77,7 +102,7 @@ model Konsultasi_Chat {
   pesan         String?
   createdAt     DateTime @default(now())
 
-  pasien        User     @relation(fields: [id_pasien], references: [id])
+  pasien        Pasien   @relation(fields: [id_pasien], references: [id_pasien])
   pembayaran    Pembayaran?
 }
 
@@ -92,6 +117,8 @@ model Pembayaran {
   createdAt         DateTime @default(now())
 
   konsultasiChat    Konsultasi_Chat @relation(fields: [id_konsultasi], references: [id_chat])
+  id_pasien         String?
+  pasien            Pasien?         @relation(fields: [id_pasien], references: [id_pasien])
 }
 
 model Jenis_Tindakan {
@@ -107,9 +134,6 @@ model Jenis_Tindakan {
 model Rekam_Medis {
   id_rekam_medis String   @id @default(cuid())
   id_pasien      String
-  nama_pasien    String
-  no_telp        String
-  alamat         String
   keluhan        String
   diagnosa       String?
   tindakan       String?
@@ -118,20 +142,8 @@ model Rekam_Medis {
   tanggal        DateTime @default(now())
   createdAt      DateTime @default(now())
 
-  // Relasi opsional ke jenis tindakan
   tindakan_id    String?
   jenisTindakan  Jenis_Tindakan? @relation(fields: [tindakan_id], references: [id_tindakan])
 
-  pasien         User     @relation(fields: [id_pasien], references: [id])
-}
-
-// Model Riwayat (baru ditambahkan)
-model Riwayat {
-  id_riwayat    String   @id @default(cuid())
-  judul         String
-  pesan         String
-  user_id       String
-  createdAt     DateTime @default(now())
-
-  user          User     @relation(fields: [user_id], references: [id])
+  pasien         Pasien   @relation(fields: [id_pasien], references: [id_pasien])
 }

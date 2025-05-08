@@ -10,13 +10,13 @@ const VALID_STATUS = [
   "Selesai",
 ];
 
-// Buat Janji Temu Baru (update versi - pakai User sebagai Pasien)
+// Buat Janji Temu Baru
 exports.createJanjiTemu = async (req, res) => {
   try {
-    const { id_pasien, tanggal_waktu, keluhan, dokter } = req.body;
+    const { user_id, tanggal_waktu, keluhan, dokter } = req.body;
 
     // Validasi input
-    if (!id_pasien || !tanggal_waktu || !keluhan) {
+    if (!user_id || !tanggal_waktu || !keluhan) {
       return res.status(400).json({ message: "Semua field wajib diisi" });
     }
 
@@ -26,15 +26,11 @@ exports.createJanjiTemu = async (req, res) => {
       return res.status(400).json({ message: "Format tanggal tidak valid" });
     }
 
-    // Cek apakah user dengan id_pasien ada dan berperan sebagai pasien
+    // Cek apakah user dengan user_id ada dan berperan sebagai pasien
     const user = await prisma.user.findUnique({
-      where: { id: id_pasien },
-      select: {
-        id: true,
-        nama: true,
-        role: true,
-        noTelp: true,
-        alamat: true,
+      where: { id: user_id },
+      include: {
+        pasien: true,
       },
     });
 
@@ -46,25 +42,39 @@ exports.createJanjiTemu = async (req, res) => {
       return res.status(403).json({ message: "User bukan pasien" });
     }
 
+    if (!user.pasien) {
+      return res.status(400).json({ message: "Data pasien tidak lengkap" });
+    }
+
     // Buat janji temu
     const janjiTemu = await prisma.janjiTemu.create({
       data: {
-        id_pasien,
+        id_pasien: user.pasien.id_pasien,
         tanggal_waktu: appointmentDate,
         keluhan,
-        dokter: dokter || "drg. Irna",
+        dokter: dokter || "drg.Irna",
         status: "Menunggu", // Set default status
+      },
+      include: {
+        pasien: true,
       },
     });
 
     res.status(201).json({
       message: "Janji temu berhasil dibuat",
-      data: janjiTemu,
-      pasien: {
-        id: user.id,
-        nama: user.nama,
-        noTelp: user.noTelp,
-        alamat: user.alamat,
+      data: {
+        id_janji: janjiTemu.id_janji,
+        id_pasien: janjiTemu.id_pasien,
+        tanggal_waktu: janjiTemu.tanggal_waktu,
+        keluhan: janjiTemu.keluhan,
+        status: janjiTemu.status,
+        dokter: janjiTemu.dokter,
+        createdAt: janjiTemu.createdAt,
+        pasien: {
+          nama: janjiTemu.pasien.nama,
+          noTelp: janjiTemu.pasien.noTelp,
+          alamat: janjiTemu.pasien.alamat,
+        },
       },
     });
   } catch (error) {
@@ -84,6 +94,7 @@ exports.getAllJanjiTemu = async (req, res) => {
           select: {
             nama: true,
             noTelp: true,
+            alamat: true,
           },
         },
       },
@@ -92,7 +103,18 @@ exports.getAllJanjiTemu = async (req, res) => {
       },
     });
 
-    res.json({ data: janjiTemu });
+    res.json({
+      data: janjiTemu.map((jt) => ({
+        id_janji: jt.id_janji,
+        id_pasien: jt.id_pasien,
+        tanggal_waktu: jt.tanggal_waktu,
+        keluhan: jt.keluhan,
+        status: jt.status,
+        dokter: jt.dokter,
+        createdAt: jt.createdAt,
+        pasien: jt.pasien,
+      })),
+    });
   } catch (error) {
     res.status(500).json({
       message: "Terjadi kesalahan",
@@ -123,7 +145,18 @@ exports.getJanjiTemuById = async (req, res) => {
       return res.status(404).json({ message: "Janji temu tidak ditemukan" });
     }
 
-    res.json({ data: janjiTemu });
+    res.json({
+      data: {
+        id_janji: janjiTemu.id_janji,
+        id_pasien: janjiTemu.id_pasien,
+        tanggal_waktu: janjiTemu.tanggal_waktu,
+        keluhan: janjiTemu.keluhan,
+        status: janjiTemu.status,
+        dokter: janjiTemu.dokter,
+        createdAt: janjiTemu.createdAt,
+        pasien: janjiTemu.pasien,
+      },
+    });
   } catch (error) {
     res.status(500).json({
       message: "Terjadi kesalahan",
@@ -153,11 +186,29 @@ exports.updateStatusJanjiTemu = async (req, res) => {
     const janjiTemu = await prisma.janjiTemu.update({
       where: { id_janji: id },
       data: { status },
+      include: {
+        pasien: {
+          select: {
+            nama: true,
+            noTelp: true,
+            alamat: true,
+          },
+        },
+      },
     });
 
     res.json({
       message: "Status janji temu berhasil diupdate",
-      data: janjiTemu,
+      data: {
+        id_janji: janjiTemu.id_janji,
+        id_pasien: janjiTemu.id_pasien,
+        tanggal_waktu: janjiTemu.tanggal_waktu,
+        keluhan: janjiTemu.keluhan,
+        status: janjiTemu.status,
+        dokter: janjiTemu.dokter,
+        createdAt: janjiTemu.createdAt,
+        pasien: janjiTemu.pasien,
+      },
     });
   } catch (error) {
     res.status(500).json({
@@ -167,19 +218,51 @@ exports.updateStatusJanjiTemu = async (req, res) => {
   }
 };
 
-// Dapatkan Janji Temu by Pasien ID
+// Dapatkan Janji Temu by User ID
 exports.getJanjiTemuByPasien = async (req, res) => {
   try {
-    const { id_pasien } = req.params;
+    const { user_id } = req.params;
+
+    // Cari user dan pasien terkait
+    const user = await prisma.user.findUnique({
+      where: { id: user_id },
+      include: {
+        pasien: true,
+      },
+    });
+
+    if (!user || !user.pasien) {
+      return res.status(404).json({ message: "Data pasien tidak ditemukan" });
+    }
 
     const janjiTemu = await prisma.janjiTemu.findMany({
-      where: { id_pasien },
+      where: { id_pasien: user.pasien.id_pasien },
+      include: {
+        pasien: {
+          select: {
+            nama: true,
+            noTelp: true,
+            alamat: true,
+          },
+        },
+      },
       orderBy: {
         tanggal_waktu: "desc",
       },
     });
 
-    res.json({ data: janjiTemu });
+    res.json({
+      data: janjiTemu.map((jt) => ({
+        id_janji: jt.id_janji,
+        id_pasien: jt.id_pasien,
+        tanggal_waktu: jt.tanggal_waktu,
+        keluhan: jt.keluhan,
+        status: jt.status,
+        dokter: jt.dokter,
+        createdAt: jt.createdAt,
+        pasien: jt.pasien,
+      })),
+    });
   } catch (error) {
     res.status(500).json({
       message: "Terjadi kesalahan",
@@ -196,11 +279,29 @@ exports.cancelJanjiTemu = async (req, res) => {
     const janjiTemu = await prisma.janjiTemu.update({
       where: { id_janji: id },
       data: { status: "Dibatalkan" },
+      include: {
+        pasien: {
+          select: {
+            nama: true,
+            noTelp: true,
+            alamat: true,
+          },
+        },
+      },
     });
 
     res.json({
       message: "Janji temu berhasil dibatalkan",
-      data: janjiTemu,
+      data: {
+        id_janji: janjiTemu.id_janji,
+        id_pasien: janjiTemu.id_pasien,
+        tanggal_waktu: janjiTemu.tanggal_waktu,
+        keluhan: janjiTemu.keluhan,
+        status: janjiTemu.status,
+        dokter: janjiTemu.dokter,
+        createdAt: janjiTemu.createdAt,
+        pasien: janjiTemu.pasien,
+      },
     });
   } catch (error) {
     res.status(500).json({
