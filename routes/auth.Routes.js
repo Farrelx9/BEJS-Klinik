@@ -45,6 +45,7 @@ router.post("/sendOtp", auth.sendOtp);
 router.post("/verifyOtp", auth.verifyOtp);
 router.post("/forgotPassword", auth.forgotPassword);
 router.post("/resetPassword", auth.resetPassword);
+router.post("/updatePassword", auth.updatePassword);
 router.post("/changePassword", authMiddleware, auth.changePassword);
 router.post(
   "/requestChangePasswordOtp",
