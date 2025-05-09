@@ -21,6 +21,9 @@ app.set("views", __dirname + "/views");
 // Serve static files from uploads directory
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
+// Cron Jobs (tambahkan di sini)
+require("./cronjobs/generateJanjiTemu.cron");
+
 app.use(routes);
 
 app.get("/", (req, res) => {

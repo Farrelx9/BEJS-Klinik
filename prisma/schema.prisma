@@ -83,14 +83,14 @@ model Riwayat {
 
 model JanjiTemu {
   id_janji      String   @id @default(cuid())
-  id_pasien     String
+  id_pasien     String?
   tanggal_waktu DateTime
   keluhan       String
   status        String
   dokter        String   @default("drg.Irna")
   createdAt     DateTime @default(now())
 
-  pasien      Pasien @relation(fields: [id_pasien], references: [id_pasien])
+  pasien      Pasien? @relation(fields: [id_pasien], references: [id_pasien])
 }
 
 model Konsultasi_Chat {
