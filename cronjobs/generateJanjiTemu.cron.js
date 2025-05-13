@@ -7,17 +7,17 @@ async function generateJanjiTemu() {
     console.log("Menjalankan cron job untuk generate janji temu...");
 
     const now = new Date();
-    const nextMonth = new Date();
+    const nextMonth = new Date(now);
     nextMonth.setMonth(nextMonth.getMonth() + 1);
 
-    // Hapus jadwal lama (opsional)
+    // Hapus hanya janji temu yang tersedia
     await prisma.janjiTemu.deleteMany({
       where: {
         tanggal_waktu: {
           gte: now,
           lte: nextMonth,
         },
-        id_pasien: null,
+        status: "tersedia",
       },
     });
 
@@ -33,28 +33,32 @@ async function generateJanjiTemu() {
           const appointmentTime = new Date(currentDate);
           appointmentTime.setHours(hour, minute, 0, 0);
 
-          await prisma.janjiTemu.create({
-            data: {
-              id_pasien: null,
+          // Cek apakah janji temu sudah ada
+          const existing = await prisma.janjiTemu.findFirst({
+            where: {
               tanggal_waktu: appointmentTime,
-              keluhan: "",
-              status: "tersedia",
-              dokter: "drg.Irna",
             },
           });
+
+          if (!existing) {
+            await prisma.janjiTemu.create({
+              data: {
+                id_pasien: null,
+                tanggal_waktu: appointmentTime,
+                keluhan: "",
+                status: "tersedia",
+                dokter: "drg.Irna",
+              },
+            });
+          }
         }
       }
 
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    console.log("Janji temu berhasil di-generate untuk 1 bulan ke depan.");
+    console.log("Janji temu berhasil di-generate untuk bulan ini.");
   } catch (error) {
-    console.error("Error saat generate janji temu:", error.message);
+    console.error("❌ Error saat generate janji temu:", error.message);
   }
 }
-
-// Jadwalkan cron
-cron.schedule("0 0 * * *", generateJanjiTemu);
-
-module.exports = generateJanjiTemu;

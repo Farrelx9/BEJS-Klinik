@@ -8,7 +8,7 @@
  */
 function getPagination(page, limit) {
   const pageNumber = Math.max(1, parseInt(page) || 1);
-  const limitNumber = Math.max(1, Math.min(parseInt(limit) || 10, 100)); // max 100 per halaman
+  const limitNumber = Math.max(1, Math.min(parseInt(limit) || 5, 100)); // max 100 per halaman
 
   const skip = (pageNumber - 1) * limitNumber;
   return { skip, limit: limitNumber };
