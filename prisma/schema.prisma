@@ -66,6 +66,7 @@ model Notifikasi {
   judul         String
   pesan         String
   id_pasien     String
+  is_read       Boolean  @default(false) 
   createdAt     DateTime @default(now())
 
   pasien        Pasien   @relation(fields: [id_pasien], references: [id_pasien])

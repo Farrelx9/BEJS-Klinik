@@ -1,6 +1,11 @@
 const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const {
+  handleUserRegistration,
+  handleProfileUpdate,
+  handleChangePassword,
+} = require("./notifikasi.controller");
 const sendEmail = require("../utils/sendEmail");
 const getRenderedHtml = require("../utils/getRenderedHtml");
 // const path = require("path");
@@ -56,6 +61,9 @@ exports.register = async (req, res) => {
     } catch (error) {
       console.error("Gagal mengirim email:", error);
     }
+
+    // Buat notifikasi setelah registrasi berhasil
+    await handleUserRegistration(user.id);
 
     res.status(201).json({
       message: "Registrasi berhasil, silakan cek email untuk verifikasi OTP",
@@ -416,6 +424,7 @@ exports.changePassword = async (req, res) => {
       where: { id_otp: otp.id_otp },
       data: { is_used: true },
     });
+    await handleChangePassword(userId);
 
     // Kirim email notifikasi perubahan password
     try {
@@ -539,7 +548,7 @@ exports.updateProfile = async (req, res) => {
       where: { id: userId },
       include: { pasien: true },
     });
-
+    await handleProfileUpdate(user.id);
     res.json({
       message: "Profil berhasil diperbarui",
       user: {
