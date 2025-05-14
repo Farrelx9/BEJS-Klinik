@@ -60,4 +60,6 @@ router.put(
   auth.updateProfile
 );
 
+// Login Khusus Role
+router.post("/login/role", auth.loginRole);
 module.exports = router;

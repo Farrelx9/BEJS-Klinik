@@ -22,19 +22,19 @@ model User {
   createdAt     DateTime  @default(now())
 
   // Relasi satu-satu ke Pasien
-  pasien        Pasien?   @relation()
+  pasien        Pasien?   
   otp           Otp[]
 }
 
 model Pasien {
   id_pasien      String           @id @default(cuid())
-  user_id        String           @unique
-  nama           String
-  noTelp         String
-  alamat         String
+  user_id        String           @unique(map: "Unique_Pasien_User")
+  nama           String?
+  noTelp         String?
+  alamat         String?
   tanggal_lahir  DateTime?
   jenis_kelamin  String?
-  profilePicture String?          // Pindah dari User ke Pasien
+  profilePicture String?         
   createdAt      DateTime         @default(now())
 
   // Relasi ke User
