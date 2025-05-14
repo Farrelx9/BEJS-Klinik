@@ -18,7 +18,7 @@ exports.register = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // Cek apakah email sudah terdaftar
+    // Cek apakah email sudah digunakan
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       return res.status(400).json({ message: "Email sudah terdaftar" });
@@ -27,7 +27,7 @@ exports.register = async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Simpan user baru
+    // Buat user baru
     const user = await prisma.user.create({
       data: {
         email,
@@ -38,9 +38,21 @@ exports.register = async (req, res) => {
       },
     });
 
+    // Buat entri Pasien (kosong dulu, nanti diisi di profile)
+    await prisma.pasien.create({
+      data: {
+        user: {
+          connect: { id: user.id },
+        },
+        nama: "",
+        noTelp: "",
+        alamat: "",
+      },
+    });
+
     // Generate OTP
     const kode_otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiry_time = new Date(Date.now() + 10 * 60 * 1000); // OTP berlaku 10 menit
+    const expiry_time = new Date(Date.now() + 10 * 60 * 1000);
     await prisma.otp.create({
       data: {
         id_user: user.id,
@@ -51,10 +63,10 @@ exports.register = async (req, res) => {
       },
     });
 
-    // Kirim OTP ke email user
+    // Kirim OTP via email
     try {
       const html = getRenderedHtml(`email-verification`, {
-        nama: email.split("@")[0], // Gunakan bagian awal email sebagai nama default
+        nama: email.split("@")[0],
         otp: kode_otp,
       });
       await sendEmail({ to: email, subject: "Your OTP Code", html });
@@ -62,9 +74,14 @@ exports.register = async (req, res) => {
       console.error("Gagal mengirim email:", error);
     }
 
-    // Buat notifikasi setelah registrasi berhasil
-    await handleUserRegistration(user.id);
+    // Jika fungsi ini bergantung pada pasien, pastikan aman
+    try {
+      await handleUserRegistration(user.id);
+    } catch (err) {
+      console.warn("handleUserRegistration gagal, lanjutkan proses...");
+    }
 
+    // Respon sukses
     res.status(201).json({
       message: "Registrasi berhasil, silakan cek email untuk verifikasi OTP",
       user: {
@@ -75,6 +92,7 @@ exports.register = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("Error registrasi:", error.message);
     res
       .status(500)
       .json({ message: "Terjadi kesalahan", error: error.message });
@@ -348,6 +366,7 @@ exports.getProfile = async (req, res) => {
       return res.status(404).json({ message: "User tidak ditemukan" });
     }
 
+    // Pastikan tidak error jika pasien null
     const transformedUser = {
       id: user.id,
       email: user.email,
@@ -356,14 +375,14 @@ exports.getProfile = async (req, res) => {
       pasien: user.pasien
         ? {
             id_pasien: user.pasien.id_pasien,
-            nama: user.pasien.nama,
-            noTelp: user.pasien.noTelp,
-            alamat: user.pasien.alamat,
-            tanggal_lahir: user.pasien.tanggal_lahir,
-            jenis_kelamin: user.pasien.jenis_kelamin,
+            nama: user.pasien.nama || null,
+            noTelp: user.pasien.noTelp || null,
+            alamat: user.pasien.alamat || null,
+            tanggal_lahir: user.pasien.tanggal_lahir || null,
+            jenis_kelamin: user.pasien.jenis_kelamin || null,
             profilePicture: user.pasien.profilePicture
               ? `http://localhost:3000/uploads/profile/${user.pasien.profilePicture}`
-              : undefined,
+              : null,
           }
         : null,
       createdAt: user.createdAt,
@@ -371,6 +390,7 @@ exports.getProfile = async (req, res) => {
 
     res.json({ user: transformedUser });
   } catch (error) {
+    console.error("Error fetching profile:", error.message);
     res
       .status(500)
       .json({ message: "Terjadi kesalahan", error: error.message });
@@ -572,6 +592,48 @@ exports.updateProfile = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating profile:", error);
+    res
+      .status(500)
+      .json({ message: "Terjadi kesalahan", error: error.message });
+  }
+};
+
+// Login Khusus untuk Admin dan Dokter
+exports.loginRole = async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    // Cari user berdasarkan email
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(400).json({ message: "Email atau password salah" });
+    }
+
+    // Validasi role: hanya admin atau dokter yang boleh login di sini
+    if (user.role !== "admin" && user.role !== "dokter") {
+      return res.status(403).json({
+        message: "Akses ditolak: hanya admin atau dokter yang bisa login",
+      });
+    }
+
+    // Cek password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Email atau password salah" });
+    }
+
+    // Generate JWT
+    const token = jwt.sign(
+      { userId: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || "secret",
+      { expiresIn: "1d" }
+    );
+
+    res.json({
+      message: `Login sebagai ${user.role} berhasil`,
+      token,
+      role: user.role,
+    });
+  } catch (error) {
     res
       .status(500)
       .json({ message: "Terjadi kesalahan", error: error.message });
