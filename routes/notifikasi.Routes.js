@@ -4,8 +4,13 @@ const {
   getNotificationsByPasienId,
   markAllNotificationsAsRead,
 } = require("../controllers/notifikasi.controller");
+const authMiddleware = require("../middlewares/auth");
 
-router.get("/:id_pasien", getNotificationsByPasienId);
-router.patch("/:id_notifikasi/mark-all-read", markAllNotificationsAsRead);
+router.get("/:id_pasien", authMiddleware, getNotificationsByPasienId);
+router.patch(
+  "/:id_notifikasi/mark-all-read",
+  authMiddleware,
+  markAllNotificationsAsRead
+);
 
 module.exports = router;

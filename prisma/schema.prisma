@@ -90,6 +90,7 @@ model JanjiTemu {
   status        String
   dokter        String   @default("drg.Irna")
   createdAt     DateTime @default(now())
+  pembayaran    String? //cash || transfer
 
   pasien      Pasien? @relation(fields: [id_pasien], references: [id_pasien])
 }
