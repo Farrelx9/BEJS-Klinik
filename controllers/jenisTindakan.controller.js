@@ -1,6 +1,6 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
-
+const { getPagination, getPaginationMeta } = require("../utils/pagination");
 // 1. Tambah jenis tindakan baru
 exports.createJenisTindakan = async (req, res) => {
   const { nama_tindakan, deskripsi, harga } = req.body;
@@ -15,21 +15,45 @@ exports.createJenisTindakan = async (req, res) => {
     });
     res.status(201).json(tindakan);
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        error: "Gagal menambahkan jenis tindakan",
-        details: error.message,
-      });
+    res.status(500).json({
+      error: "Gagal menambahkan jenis tindakan",
+      details: error.message,
+    });
   }
 };
 
 // 2. Ambil semua jenis tindakan
 exports.getAllJenisTindakan = async (req, res) => {
+  const { page = 1, limit = 5, search } = req.query;
+
   try {
-    const tindakanList = await prisma.jenis_Tindakan.findMany();
-    res.json(tindakanList);
+    let whereClause = {};
+
+    // Filter pencarian berdasarkan nama_tindakan
+    if (search && search.trim()) {
+      whereClause.nama_tindakan = {
+        contains: search,
+        mode: "insensitive", // Case-insensitive pencarian
+      };
+    }
+
+    const totalItems = await prisma.jenis_Tindakan.count({
+      where: whereClause,
+    });
+
+    const { skip, limit: parsedLimit } = getPagination(page, limit);
+
+    const tindakanList = await prisma.jenis_Tindakan.findMany({
+      where: whereClause,
+      skip,
+      take: parsedLimit,
+    });
+
+    const meta = getPaginationMeta(totalItems, parsedLimit, parseInt(page));
+
+    res.json({ success: true, data: tindakanList, meta });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: "Gagal mengambil daftar tindakan" });
   }
 };
@@ -69,12 +93,10 @@ exports.updateJenisTindakan = async (req, res) => {
     });
     res.json(updated);
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        error: "Gagal memperbarui jenis tindakan",
-        details: error.message,
-      });
+    res.status(500).json({
+      error: "Gagal memperbarui jenis tindakan",
+      details: error.message,
+    });
   }
 };
 
@@ -88,11 +110,9 @@ exports.deleteJenisTindakan = async (req, res) => {
     });
     res.json({ message: "Jenis tindakan berhasil dihapus" });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        error: "Gagal menghapus jenis tindakan",
-        details: error.message,
-      });
+    res.status(500).json({
+      error: "Gagal menghapus jenis tindakan",
+      details: error.message,
+    });
   }
 };
