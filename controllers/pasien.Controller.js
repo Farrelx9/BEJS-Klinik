@@ -1,18 +1,31 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
+
 const { getPagination, getPaginationMeta } = require("../utils/pagination");
 
-// Fungsi untuk mendapatkan semua pasien dengan pagination
+// === GET ALL PASIEN ===
 exports.getAllPasien = async (req, res) => {
   try {
-    const { page = 1, limit = 5 } = req.query;
+    const { page = 1, limit = 5, search = "" } = req.query;
 
-    const { skip, limit: take } = getPagination(page, limit);
+    const { skip, limit: limitNumber } = getPagination(page, limit);
 
-    // Ambil data pasien dengan pagination
+    // Buat where clause dinamis untuk pencarian
+    const whereClause = {};
+
+    if (search.trim()) {
+      whereClause.OR = [
+        { nama: { contains: search, mode: "insensitive" } },
+        { noTelp: { contains: search, mode: "insensitive" } },
+        { user: { email: { contains: search, mode: "insensitive" } } },
+      ];
+    }
+
+    // Ambil data pasien dengan relasi ke user.email
     const pasiens = await prisma.pasien.findMany({
+      where: whereClause,
       skip,
-      take,
+      take: limitNumber,
       include: {
         user: {
           select: {
@@ -22,14 +35,16 @@ exports.getAllPasien = async (req, res) => {
       },
     });
 
-    // Hitung total data
-    const total = await prisma.pasien.count();
+    // Hitung total item untuk metadata
+    const totalItems = await prisma.pasien.count({
+      where: whereClause,
+    });
 
     // Format respons
     const formattedPasiens = pasiens.map((p) => ({
       id_pasien: p.id_pasien,
       nama: p.nama,
-      email: p.user.email,
+      email: p.user?.email || null,
       noTelp: p.noTelp,
       alamat: p.alamat,
       tanggal_lahir: p.tanggal_lahir,
@@ -40,16 +55,92 @@ exports.getAllPasien = async (req, res) => {
       createdAt: p.createdAt,
     }));
 
-    const meta = getPaginationMeta(total, take, parseInt(page));
+    const meta = getPaginationMeta(totalItems, limitNumber, parseInt(page));
 
     return res.json({
+      success: true,
       data: formattedPasiens,
       meta,
     });
   } catch (error) {
     console.error("Error fetching pasien:", error.message);
-    return res
-      .status(500)
-      .json({ message: "Terjadi kesalahan", error: error.message });
+    return res.status(500).json({
+      success: false,
+      message: "Gagal mengambil data pasien",
+      error: error.message,
+    });
+  }
+};
+
+// === CREATE PASIEN ===
+exports.createPasien = async (req, res) => {
+  const { nama, noTelp, alamat, tanggal_lahir, jenis_kelamin } = req.body;
+
+  try {
+    const newPasien = await prisma.pasien.create({
+      data: {
+        nama,
+        noTelp,
+        alamat,
+        tanggal_lahir: tanggal_lahir ? new Date(tanggal_lahir) : undefined,
+        jenis_kelamin,
+
+        // ✅ Sertakan `user: null` jika relasi opsional
+        user_id: null,
+      },
+    });
+
+    return res.status(201).json(newPasien);
+  } catch (error) {
+    console.error("Gagal menambahkan pasien:", error.message);
+    return res.status(500).json({ error: "Gagal menambahkan pasien" });
+  }
+};
+
+// === UPDATE PASIEN ===
+exports.updatePasien = async (req, res) => {
+  const { id_pasien } = req.params;
+  const { nama, noTelp, alamat, tanggal_lahir, jenis_kelamin } = req.body;
+
+  if (!id_pasien) {
+    return res.status(400).json({ error: "ID pasien tidak ditemukan" });
+  }
+
+  try {
+    const updatedPasien = await prisma.pasien.update({
+      where: { id_pasien },
+      data: {
+        ...(nama && { nama }),
+        ...(noTelp !== undefined && { noTelp }),
+        ...(alamat && { alamat }),
+        ...(tanggal_lahir && { tanggal_lahir: new Date(tanggal_lahir) }),
+        ...(jenis_kelamin && { jenis_kelamin }),
+      },
+    });
+
+    return res.json(updatedPasien);
+  } catch (error) {
+    console.error("Gagal memperbarui pasien:", error.message);
+    return res.status(500).json({ error: "Gagal memperbarui pasien" });
+  }
+};
+
+// === DELETE PASIEN ===
+exports.deletePasien = async (req, res) => {
+  const { id_pasien } = req.params;
+
+  if (!id_pasien) {
+    return res.status(400).json({ error: "ID pasien tidak valid" });
+  }
+
+  try {
+    await prisma.pasien.delete({
+      where: { id_pasien },
+    });
+
+    return res.json({ message: "Pasien berhasil dihapus" });
+  } catch (error) {
+    console.error("Gagal menghapus pasien:", error.message);
+    return res.status(500).json({ error: "Gagal menghapus pasien" });
   }
 };

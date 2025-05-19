@@ -28,7 +28,7 @@ model User {
 
 model Pasien {
   id_pasien      String           @id @default(cuid())
-  user_id        String           @unique(map: "Unique_Pasien_User")
+  user_id        String?          @unique(map: "Unique_Pasien_User")
   nama           String?
   noTelp         String?
   alamat         String?
@@ -38,7 +38,7 @@ model Pasien {
   createdAt      DateTime         @default(now())
 
   // Relasi ke User
-  user           User             @relation(fields: [user_id], references: [id])
+  user           User?            @relation(fields: [user_id], references: [id])
 
   // Semua relasi dari pasien ke model lain
   janjiTemu      JanjiTemu[]
@@ -125,7 +125,7 @@ model Pembayaran {
 
 model Jenis_Tindakan {
   id_tindakan    String   @id @default(cuid())
-  nama_tindakan  String
+  nama_tindakan  String   @unique 
   deskripsi      String?
   harga          Int
   createdAt      DateTime @default(now())
