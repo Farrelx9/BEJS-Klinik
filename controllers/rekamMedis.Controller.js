@@ -1,7 +1,7 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
-// 1. Tambah Rekam Medis Baru
+// === 1. Tambah Rekam Medis ===
 exports.createRekamMedis = async (req, res) => {
   const {
     id_pasien,
@@ -11,11 +11,10 @@ exports.createRekamMedis = async (req, res) => {
     resep_obat,
     dokter,
     tanggal,
-    tindakan_id,
   } = req.body;
 
   try {
-    const rekamMedis = await prisma.rekam_Medis.create({
+    const newRecord = await prisma.rekam_Medis.create({
       data: {
         id_pasien,
         keluhan,
@@ -24,14 +23,13 @@ exports.createRekamMedis = async (req, res) => {
         resep_obat,
         dokter,
         tanggal: tanggal ? new Date(tanggal) : new Date(),
-        tindakan_id,
       },
     });
-    res.status(201).json(rekamMedis);
+
+    res.status(201).json(newRecord);
   } catch (error) {
-    res
-      .status(500)
-      .json({ error: "Gagal menambahkan rekam medis", details: error.message });
+    console.error("Gagal menambahkan rekam medis:", error.message);
+    res.status(500).json({ error: "Gagal menambahkan rekam medis" });
   }
 };
 

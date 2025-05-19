@@ -1,27 +1,36 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const { getPagination, getPaginationMeta } = require("../utils/pagination");
+
 // 1. Tambah jenis tindakan baru
 exports.createJenisTindakan = async (req, res) => {
   const { nama_tindakan, deskripsi, harga } = req.body;
 
+  // Validasi input
+  if (!nama_tindakan || !harga) {
+    return res
+      .status(400)
+      .json({ error: "Nama tindakan dan harga wajib diisi" });
+  }
+
   try {
-    const tindakan = await prisma.jenis_Tindakan.create({
+    const newTindakan = await prisma.jenis_Tindakan.create({
       data: {
         nama_tindakan,
         deskripsi,
-        harga,
+        harga: parseInt(harga), // Pastikan harga adalah integer
       },
     });
-    res.status(201).json(tindakan);
+
+    res.status(201).json(newTindakan);
   } catch (error) {
+    console.error("Error creating jenis tindakan:", error);
     res.status(500).json({
       error: "Gagal menambahkan jenis tindakan",
       details: error.message,
     });
   }
 };
-
 // 2. Ambil semua jenis tindakan
 exports.getAllJenisTindakan = async (req, res) => {
   const { page = 1, limit = 5, search } = req.query;
