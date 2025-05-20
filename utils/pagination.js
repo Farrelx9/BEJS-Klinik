@@ -26,7 +26,7 @@ function getPaginationMeta(totalItems, limit, page) {
   return {
     totalItems,
     itemCount: limit,
-    totalPages,
+    totalPages: totalPages || 1,
     currentPage: page,
     hasNextPage: page < totalPages,
     hasPrevPage: page > 1,

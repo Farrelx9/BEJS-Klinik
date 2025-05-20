@@ -1,6 +1,7 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const { getPagination, getPaginationMeta } = require("../utils/pagination");
+
 // === 1. Tambah Rekam Medis ===
 exports.createRekamMedis = async (req, res) => {
   const {
@@ -14,6 +15,13 @@ exports.createRekamMedis = async (req, res) => {
   } = req.body;
 
   try {
+    // Validasi input wajib
+    if (!id_pasien || !diagnosa || !tindakan) {
+      return res.status(400).json({
+        error: "ID Pasien, Diagnosa, dan Tindakan harus diisi",
+      });
+    }
+
     const newRecord = await prisma.rekam_Medis.create({
       data: {
         id_pasien,
@@ -26,27 +34,23 @@ exports.createRekamMedis = async (req, res) => {
       },
     });
 
-    res.status(201).json(newRecord);
+    return res.status(201).json(newRecord);
   } catch (error) {
     console.error("Gagal menambahkan rekam medis:", error.message);
-    res.status(500).json({ error: "Gagal menambahkan rekam medis" });
+    return res.status(500).json({ error: "Gagal menambahkan rekam medis" });
   }
 };
 
-// 2. Ambil Semua Rekam Medis
+// === 2. Ambil Semua Rekam Medis (Hanya Satu Terbaru per Pasien)
 exports.getAllRekamMedis = async (req, res) => {
   const { page = 1, limit = 5, search = "" } = req.query;
+
   try {
     const { skip, take } = getPagination(page, limit);
     const searchTerm = search.trim();
 
-    // Buat where clause dinamis
-    const whereClause = {
-      AND: [],
-    };
-
-    if (searchTerm) {
-      whereClause.AND.push({
+    const allRecords = await prisma.rekam_Medis.findMany({
+      where: {
         OR: [
           {
             pasien: {
@@ -69,59 +73,66 @@ exports.getAllRekamMedis = async (req, res) => {
             },
           },
         ],
-      });
-    }
-
-    // ✅ Gunakan format valid untuk Prisma v6.7.0
-    whereClause.AND.push({
-      pasien: {
-        is: {},
       },
-    });
-
-    // Ambil data dari database
-    const records = await prisma.rekam_Medis.findMany({
       include: {
         pasien: true,
       },
-      where: whereClause,
-      skip,
-      take,
+      orderBy: {
+        createdAt: "desc",
+      },
     });
 
-    const totalItems = await prisma.rekam_Medis.count({
-      where: whereClause,
-    });
+    if (!allRecords.length) {
+      return res.json({
+        data: [],
+        meta: getPaginationMeta(0, take, parseInt(page)),
+      });
+    }
 
-    const meta = getPaginationMeta(totalItems, take, parseInt(page));
+    // Grup berdasarkan id_pasien
+    const groupedMap = {};
+    for (const record of allRecords) {
+      if (!record.id_pasien) continue;
+      const currentPasienId = record.id_pasien;
+
+      if (!groupedMap[currentPasienId]) {
+        groupedMap[currentPasienId] = record;
+      }
+    }
+
+    const latestPerPasien = Object.values(groupedMap);
+
+    if (latestPerPasien.length === 0) {
+      return res.json({
+        data: [],
+        meta: getPaginationMeta(0, take, parseInt(page)),
+      });
+    }
+
+    const totalItems = latestPerPasien.length;
+    const paginatedData = latestPerPasien.slice(skip, skip + take);
 
     return res.json({
-      data: records.map((record) => ({
+      data: paginatedData.map((record) => ({
         id_rekam_medis: record.id_rekam_medis,
         id_pasien: record.id_pasien,
 
-        // 🔹 Mapping pasien
-        nama_pasien: record.pasien.nama,
-        alamat_pasien: record.pasien.alamat,
-        jenis_kelamin_pasien: record.pasien.jenis_kelamin,
-        tanggal_lahir_pasien: record.pasien.tanggal_lahir,
+        nama_pasien: record.pasien?.nama || "-",
+        alamat_pasien: record.pasien?.alamat || "-",
+        jenis_kelamin_pasien: record.pasien?.jenis_kelamin || "-",
+        tanggal_lahir_pasien: record.pasien?.tanggal_lahir
+          ? new Date(record.pasien.tanggal_lahir).toISOString().split("T")[0]
+          : null,
 
-        // 🔹 Field rekam medis
-        keluhan: record.keluhan,
-        diagnosa: record.diagnosa,
-        tindakan: record.tindakan,
-        resep_obat: record.resep_obat,
-        dokter: record.dokter,
+        keluhan: record.keluhan || "-",
+        diagnosa: record.diagnosa || "-",
+        tindakan: record.tindakan || "-",
+        resep_obat: record.resep_obat || "-",
+        dokter: record.dokter || "-",
         tanggal: record.tanggal.toISOString().split("T")[0],
         createdAt: record.createdAt,
       })),
-      meta: {
-        totalItems: meta.totalItems,
-        currentPage: meta.page,
-        totalPages: meta.totalPages || 1,
-        hasNextPage: meta.hasNextPage,
-        hasPrevPage: meta.hasPrevPage,
-      },
+      meta: getPaginationMeta(totalItems, take, parseInt(page)),
     });
   } catch (error) {
     console.error("Error fetching medical records:", error.message);
@@ -129,7 +140,55 @@ exports.getAllRekamMedis = async (req, res) => {
   }
 };
 
-// 3. Ambil Rekam Medis Berdasarkan ID
+// === 3. Ambil Semua Riwayat Rekam Medis Berdasarkan ID Pasien ===
+exports.getRekamMedisByPasien = async (req, res) => {
+  const { id_pasien } = req.params;
+
+  try {
+    const records = await prisma.rekam_Medis.findMany({
+      where: { id_pasien },
+      include: {
+        pasien: true,
+      },
+      orderBy: {
+        tanggal: "desc", // Urutkan dari yang terbaru
+      },
+    });
+
+    if (!records.length) {
+      return res.status(404).json({
+        error: "Tidak ada riwayat rekam medis ditemukan",
+      });
+    }
+
+    const formattedRecords = records.map((record) => ({
+      id_rekam_medis: record.id_rekam_medis,
+      id_pasien: record.id_pasien,
+
+      nama_pasien: record.pasien.nama || "-",
+      alamat_pasien: record.pasien.alamat || "-",
+      jenis_kelamin_pasien: record.pasien.jenis_kelamin || "-",
+      tanggal_lahir_pasien: record.pasien.tanggal_lahir || null,
+
+      keluhan: record.keluhan || "-",
+      diagnosa: record.diagnosa || "-",
+      tindakan: record.tindakan || "-",
+      resep_obat: record.resep_obat || "-",
+      dokter: record.dokter || "-",
+      tanggal: record.tanggal.toISOString(), // Kirim ISO string
+      createdAt: record.createdAt,
+    }));
+
+    return res.json(formattedRecords);
+  } catch (error) {
+    console.error("Gagal mengambil riwayat rekam medis:", error.message);
+    return res
+      .status(500)
+      .json({ error: "Gagal mengambil riwayat rekam medis" });
+  }
+};
+
+// === 4. Ambil Rekam Medis Berdasarkan ID ===
 exports.getRekamMedisById = async (req, res) => {
   const { id } = req.params;
 
@@ -146,13 +205,28 @@ exports.getRekamMedisById = async (req, res) => {
       return res.status(404).json({ error: "Rekam medis tidak ditemukan" });
     }
 
-    res.json(rekamMedis);
+    return res.json({
+      id_rekam_medis: rekamMedis.id_rekam_medis,
+      id_pasien: rekamMedis.id_pasien,
+      nama_pasien: rekamMedis.pasien?.nama || "-",
+      alamat_pasien: rekamMedis.pasien?.alamat || "-",
+      jenis_kelamin_pasien: rekamMedis.pasien?.jenis_kelamin || "-",
+      tanggal_lahir_pasien: rekamMedis.pasien?.tanggal_lahir || null,
+
+      keluhan: rekamMedis.keluhan || "-",
+      diagnosa: rekamMedis.diagnosa || "-",
+      tindakan: rekamMedis.tindakan || "-",
+      resep_obat: rekamMedis.resep_obat || "-",
+      dokter: rekamMedis.dokter || "-",
+      tanggal: rekamMedis.tanggal.toISOString(),
+      createdAt: rekamMedis.createdAt,
+    });
   } catch (error) {
-    res.status(500).json({ error: "Gagal mengambil rekam medis" });
+    return res.status(500).json({ error: "Gagal mengambil rekam medis" });
   }
 };
 
-// 4. Update Rekam Medis
+// === 5. Update Rekam Medis ===
 exports.updateRekamMedis = async (req, res) => {
   const { id } = req.params;
   const {
@@ -167,14 +241,7 @@ exports.updateRekamMedis = async (req, res) => {
   } = req.body;
 
   try {
-    // Validasi minimal field penting
-    if (!diagnosa || !tindakan) {
-      return res
-        .status(400)
-        .json({ error: "Diagnosis dan Tindakan harus diisi" });
-    }
-
-    const rekamMedis = await prisma.rekam_Medis.update({
+    const updatedRecord = await prisma.rekam_Medis.update({
       where: { id_rekam_medis: id },
       data: {
         ...(id_pasien !== undefined && { id_pasien }),
@@ -182,25 +249,20 @@ exports.updateRekamMedis = async (req, res) => {
         ...(diagnosa !== undefined && { diagnosa }),
         ...(tindakan !== undefined && { tindakan }),
         ...(resep_obat !== undefined && { resep_obat }),
-        ...(dokter !== undefined ? { dokter } : { dokter: "drg. Irna" }),
-        ...(tanggal !== undefined && {
-          tanggal: new Date(tanggal),
-        }),
+        ...(dokter !== undefined ? { dokter } : {}),
+        ...(tanggal !== undefined && { tanggal: new Date(tanggal) }),
         ...(tindakan_id !== undefined && { tindakan_id }),
       },
     });
 
-    res.json(rekamMedis);
+    return res.json(updatedRecord);
   } catch (error) {
     console.error("Gagal memperbarui rekam medis:", error.message);
-    res.status(500).json({
-      error: "Gagal memperbarui rekam medis",
-      details: error.message,
-    });
+    return res.status(500).json({ error: "Gagal memperbarui rekam medis" });
   }
 };
 
-// 5. Hapus Rekam Medis
+// === 6. Hapus Rekam Medis ===
 exports.deleteRekamMedis = async (req, res) => {
   const { id } = req.params;
 
@@ -208,10 +270,9 @@ exports.deleteRekamMedis = async (req, res) => {
     await prisma.rekam_Medis.delete({
       where: { id_rekam_medis: id },
     });
-    res.json({ message: "Rekam medis berhasil dihapus" });
+
+    return res.json({ message: "Rekam medis berhasil dihapus" });
   } catch (error) {
-    res
-      .status(500)
-      .json({ error: "Gagal menghapus rekam medis", details: error.message });
+    return res.status(500).json({ error: "Gagal menghapus rekam medis" });
   }
 };
