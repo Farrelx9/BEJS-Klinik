@@ -23,6 +23,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Cron Jobs (tambahkan di sini)
 require("./cronjobs/generateJanjiTemu.cron");
+require("./cronjobs/generateJadwalChat");
 
 app.use(routes);
 

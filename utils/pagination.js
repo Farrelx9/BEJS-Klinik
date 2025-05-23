@@ -8,10 +8,9 @@
  */
 function getPagination(page, limit) {
   const pageNumber = Math.max(1, parseInt(page) || 1);
-  const limitNumber = Math.max(1, Math.min(parseInt(limit) || 5, 100)); // max 100 per halaman
-
+  const limitNumber = Math.max(1, Math.min(parseInt(limit) || 5, 100));
   const skip = (pageNumber - 1) * limitNumber;
-  return { skip, limit: limitNumber };
+  return { skip, take: limitNumber };
 }
 
 /**
@@ -22,14 +21,14 @@ function getPagination(page, limit) {
  * @returns {Object} - Metadata pagination
  */
 function getPaginationMeta(totalItems, limit, page) {
-  const totalPages = Math.ceil(totalItems / limit);
+  const totalPages = Math.ceil(totalItems / limit) || 1;
   return {
     totalItems,
-    itemCount: limit,
-    totalPages: totalPages || 1,
-    currentPage: page,
+    page,
+    totalPages,
     hasNextPage: page < totalPages,
     hasPrevPage: page > 1,
+    itemCount: limit,
   };
 }
 

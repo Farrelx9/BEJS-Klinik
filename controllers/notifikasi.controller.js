@@ -27,7 +27,7 @@ async function getNotificationsByPasienId(req, res) {
   const { page = 1, limit = 5 } = req.query;
 
   try {
-    const { skip, limit: take } = getPagination(page, limit);
+    const { skip, take } = getPagination(page, limit);
 
     // Hitung total notifikasi pasien
     const totalItems = await prisma.notifikasi.count({
@@ -44,16 +44,27 @@ async function getNotificationsByPasienId(req, res) {
 
     const meta = getPaginationMeta(totalItems, take, parseInt(page));
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      data: notifications,
-      meta,
+      data: notifications.map((notif) => ({
+        ...notif,
+        tanggal: new Date(notif.createdAt).toISOString().split("T")[0],
+        waktu: new Date(notif.createdAt).toLocaleTimeString("id-ID"),
+      })),
+      meta: {
+        totalItems: meta.totalItems,
+        currentPage: meta.page,
+        totalPages: meta.totalPages,
+        hasNextPage: meta.hasNextPage,
+        hasPrevPage: meta.hasPrevPage,
+      },
     });
   } catch (error) {
-    console.error("Error fetching notifications:", error);
-    res.status(500).json({
+    console.error("Error fetching notifications:", error.message);
+    return res.status(500).json({
       success: false,
-      message: "Failed to fetch notifications",
+      message: "Gagal mengambil notifikasi",
+      details: error.message,
     });
   }
 }

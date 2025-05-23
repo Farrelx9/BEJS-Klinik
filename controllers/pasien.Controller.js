@@ -8,7 +8,11 @@ exports.getAllPasien = async (req, res) => {
   try {
     const { page = 1, limit = 5, search = "" } = req.query;
 
-    const { skip, limit: limitNumber } = getPagination(page, limit);
+    // Validasi input
+    const pageNumber = Math.max(1, parseInt(page) || 1);
+    const limitNumber = Math.max(1, Math.min(parseInt(limit) || 5, 100));
+
+    const { skip, take } = getPagination(pageNumber, limitNumber);
 
     // Buat where clause dinamis untuk pencarian
     const whereClause = {};
@@ -55,12 +59,19 @@ exports.getAllPasien = async (req, res) => {
       createdAt: p.createdAt,
     }));
 
-    const meta = getPaginationMeta(totalItems, limitNumber, parseInt(page));
+    const meta = getPaginationMeta(totalItems, limitNumber, pageNumber);
 
     return res.json({
       success: true,
       data: formattedPasiens,
-      meta,
+      meta: {
+        totalItems: meta.totalItems,
+        page: meta.page,
+        totalPages: meta.totalPages,
+        hasNextPage: meta.hasNextPage,
+        hasPrevPage: meta.hasPrevPage,
+        itemCount: limitNumber,
+      },
     });
   } catch (error) {
     console.error("Error fetching pasien:", error.message);
