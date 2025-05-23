@@ -4,8 +4,8 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js",
+    "start": "node --no-warnings -r ./patch-punycode.js app.js",
+    "dev": "nodemon --no-warnings -r ./patch-punycode.js app.js",
     "seed": "node prisma/seed.js"
   },
   "dependencies": {
@@ -28,7 +28,9 @@
     "multer": "^1.4.5-lts.2",
     "node-cron": "^3.0.3",
     "nodemailer": "^7.0.0",
-    "nodemon": "^3.1.9"
+    "nodemon": "^3.1.9",
+    "punycode.js": "^2.3.1",
+    "whatwg-url": "^14.2.0"
   },
   "devDependencies": {
     "prisma": "^6.5.0"
