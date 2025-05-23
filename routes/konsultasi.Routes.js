@@ -41,3 +41,10 @@ router.get(
 router.post("/chat/pilih-jadwal", authMidlleware, konsultasi.pilihJadwal); // POST - Booking jadwal
 
 module.exports = router;
+
+//8
+router.get(
+  "/chat/admin/daftar",
+  authMidlleware,
+  konsultasi.getAllChatsForAdmin
+);

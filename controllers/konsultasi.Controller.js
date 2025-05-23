@@ -275,3 +275,28 @@ exports.pilihJadwal = async (req, res) => {
     });
   }
 };
+
+//8
+exports.getAllChatsForAdmin = async (req, res) => {
+  const { page = 1, limit = 5 } = req.query;
+
+  try {
+    const data = await prisma.konsultasi_Chat.findMany({
+      include: {
+        pasien: true,
+        messages: {
+          orderBy: { waktu_kirim: "desc" },
+          take: 1,
+        },
+      },
+      skip: (page - 1) * limit,
+      take: parseInt(limit),
+      orderBy: { waktu_mulai: "desc" },
+    });
+
+    return res.json({ success: true, data });
+  } catch (error) {
+    console.error("Gagal ambil semua chat:", error.message);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};

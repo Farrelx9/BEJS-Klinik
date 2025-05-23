@@ -1,9 +1,12 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
-// controllers/webHook.Controller.js
 exports.handleWebhook = async (req, res) => {
   const { transaction_status, order_id } = req.body;
+
+  if (!transaction_status || !order_id) {
+    return res.status(400).send("Data transaksi tidak lengkap");
+  }
 
   try {
     let status;
@@ -20,7 +23,7 @@ exports.handleWebhook = async (req, res) => {
     }
 
     // Update pembayaran
-    await prisma.pembayaran.update({
+    const updatedPayment = await prisma.pembayaran.update({
       where: { id_konsultasi: order_id },
       data: {
         status,
@@ -28,8 +31,23 @@ exports.handleWebhook = async (req, res) => {
       },
     });
 
+    if (!updatedPayment) {
+      throw new Error("Gagal update pembayaran");
+    }
+
     // Update konsultasi chat jika sukses
     if (status === "sukses") {
+      const chatExists = await prisma.konsultasi_Chat.findUnique({
+        where: { id_chat: order_id },
+      });
+
+      if (!chatExists) {
+        console.error(`Chat dengan id_chat ${order_id} tidak ditemukan.`);
+        return res
+          .status(404)
+          .json({ success: false, message: "Chat tidak ditemukan." });
+      }
+
       await prisma.konsultasi_Chat.update({
         where: { id_chat: order_id },
         data: { status: "dibayar" },
