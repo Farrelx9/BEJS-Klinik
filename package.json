@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node --no-warnings -r ./patch-punycode.js app.js",
     "dev": "nodemon --no-warnings -r ./patch-punycode.js app.js",
+    "postinstall": "prisma generate",
     "seed": "node prisma/seed.js"
   },
   "dependencies": {
