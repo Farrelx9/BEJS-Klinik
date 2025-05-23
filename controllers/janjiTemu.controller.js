@@ -7,63 +7,72 @@ exports.getAvailableJanjiTemu = async (req, res) => {
   try {
     const { page = 1, limit = 5, tanggal } = req.query;
 
-    const { skip, limit: limitNumber } = getPagination(page, limit);
+    const { skip, take } = getPagination(page, limit);
 
-    // Buat where clause dinamis
-    const whereClause = {
+    // Buat where clause dinamis untuk janji temu tersedia
+    let whereClause = {
       id_pasien: null,
       status: "tersedia",
       tanggal_waktu: {
-        gte: new Date(),
+        gte: new Date(), // Janji temu mulai dari sekarang
       },
     };
 
-    // Jika ada parameter tanggal, tambahkan filter
+    // Filter berdasarkan tanggal jika ada
     if (tanggal) {
       const selectedDate = new Date(tanggal);
+
+      if (isNaN(selectedDate.getTime())) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Tanggal tidak valid" });
+      }
+
+      const startOfDay = new Date(selectedDate);
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(selectedDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
       whereClause.tanggal_waktu = {
-        gte: new Date(selectedDate.setHours(0, 0, 0, 0)),
-        lt: new Date(selectedDate.setHours(23, 59, 59, 999)),
+        gte: startOfDay,
+        lt: endOfDay,
       };
     }
 
-    // Debugging: Cek isi whereClause
-    console.log("FilterWhereClause:", {
-      whereClause,
-      rawTanggal: req.query.tanggal,
-      parsedTanggal: tanggal ? new Date(tanggal) : null,
-    });
-
-    // Ambil data janji temu dengan pagination
+    // Ambil data janji temu sesuai filter
     const data = await prisma.janjiTemu.findMany({
       where: whereClause,
       orderBy: {
         tanggal_waktu: "asc",
       },
       skip,
-      take: limitNumber,
+      take,
     });
 
-    // Hitung total data untuk metadata
+    // Hitung total items untuk pagination
     const totalItems = await prisma.janjiTemu.count({
       where: whereClause,
     });
 
-    // Debugging: Total item
-    console.log("Total Items:", totalItems);
-
-    const meta = getPaginationMeta(totalItems, limitNumber, parseInt(page));
+    const meta = getPaginationMeta(totalItems, take, parseInt(page));
 
     return res.json({
       success: true,
       data,
-      meta,
+      meta: {
+        totalItems: meta.totalItems,
+        currentPage: meta.page,
+        totalPages: meta.totalPages,
+        hasNextPage: meta.hasNextPage,
+        hasPrevPage: meta.hasPrevPage,
+      },
     });
   } catch (error) {
-    console.error("Error fetching janji temu:", error.message);
+    console.error("Error fetching available appointments:", error.message);
     return res
       .status(500)
-      .json({ success: false, message: "Gagal mengambil data" });
+      .json({ success: false, message: "Gagal mengambil data janji temu" });
   }
 };
 
@@ -115,18 +124,40 @@ exports.bookJanjiTemu = async (req, res) => {
 
 exports.getBookedJanjiTemuByPasien = async (req, res) => {
   const { id_pasien } = req.params;
+  const { page = 1, limit = 5 } = req.query;
 
   try {
-    const bookedAppointments = await prisma.janjiTemu.findMany({
+    // Hitung total data untuk meta
+    const totalItems = await prisma.janjiTemu.count({
       where: {
         id_pasien,
         status: {
-          in: ["pending", "terpesan"],
+          in: ["pending", "confirmed", "cancelled"],
         },
       },
     });
 
-    res.json({ success: true, data: bookedAppointments });
+    const { skip, take } = getPagination(page, limit);
+
+    // Ambil data dengan pagination
+    const bookedAppointments = await prisma.janjiTemu.findMany({
+      where: {
+        id_pasien,
+        status: {
+          in: ["pending", "confirmed", "cancelled"],
+        },
+      },
+      skip,
+      take,
+    });
+
+    const meta = getPaginationMeta(totalItems, take, parseInt(page));
+
+    res.json({
+      success: true,
+      data: bookedAppointments,
+      meta,
+    });
   } catch (error) {
     console.error(error);
     res
@@ -165,68 +196,104 @@ exports.confirmJanjiTemu = async (req, res) => {
 };
 
 //book admin
-
 exports.getBookedJanjiTemu = async (req, res) => {
   const { page = 1, limit = 5, statusFilter, search } = req.query;
 
   try {
+    // Buat where clause dinamis
     let whereClause = {
       id_pasien: { not: null }, // hanya janji yang dipesan pasien
+      AND: [],
     };
 
     // Filter berdasarkan status
     if (
       statusFilter &&
-      ["pending", "confirmed", "cancelled", "terpesan"].includes(statusFilter)
+      ["pending", "confirmed", "cancelled"].includes(statusFilter)
     ) {
-      whereClause.status = statusFilter;
+      whereClause.AND.push({ status: statusFilter });
     } else {
-      whereClause.status = {
-        in: ["pending", "confirmed", "cancelled", "terpesan"],
-      };
+      whereClause.AND.push({
+        status: {
+          in: ["pending", "confirmed", "cancelled"],
+        },
+      });
     }
 
-    // Filter berdasarkan pencarian
+    // Filter pencarian
     if (search && search.trim()) {
-      whereClause.OR = [
-        {
-          pasien: {
-            nama: {
-              contains: search,
+      whereClause.AND.push({
+        OR: [
+          {
+            pasien: {
+              nama: {
+                contains: search.trim(),
+                mode: "insensitive",
+              },
+            },
+          },
+          {
+            keluhan: {
+              contains: search.trim(),
               mode: "insensitive",
             },
           },
-        },
-        {
-          keluhan: {
-            contains: search,
-            mode: "insensitive",
-          },
-        },
-      ];
+        ],
+      });
     }
 
-    const totalItems = await prisma.janjiTemu.count({ where: whereClause });
+    // Hitung total item sesuai filter
+    const totalItems = await prisma.janjiTemu.count({
+      where: whereClause,
+    });
 
-    const { skip, limit: parsedLimit } = getPagination(page, limit);
+    // Pagination
+    const { skip, take } = getPagination(page, limit);
 
+    // Ambil data dengan pagination
     const bookedAppointments = await prisma.janjiTemu.findMany({
       where: whereClause,
       include: {
         pasien: true,
       },
       skip,
-      take: parsedLimit,
+      take,
     });
 
-    const meta = getPaginationMeta(totalItems, parsedLimit, parseInt(page));
+    // Generate meta pagination
+    const meta = getPaginationMeta(totalItems, take, parseInt(page));
 
-    res.json({ success: true, data: bookedAppointments, meta });
+    return res.json({
+      success: true,
+      data: bookedAppointments.map((app) => ({
+        id_janji: app.id_janji,
+        id_pasien: app.id_pasien,
+
+        nama_pasien: app.pasien?.nama || "-",
+        noTelp_pasien: app.pasien?.noTelp || "-",
+
+        tanggal_waktu: new Date(app.tanggal_waktu).toISOString().split("T")[0],
+        waktu_janji: new Date(app.tanggal_waktu).toLocaleTimeString("id-ID"),
+
+        keluhan: app.keluhan || "-",
+        status: app.status || "-",
+        createdAt: app.createdAt,
+      })),
+      meta: {
+        totalItems: meta.totalItems,
+        currentPage: meta.page,
+        totalPages: meta.totalPages,
+        hasNextPage: meta.hasNextPage,
+        hasPrevPage: meta.hasPrevPage,
+      },
+    });
   } catch (error) {
-    console.error(error);
-    res
-      .status(500)
-      .json({ success: false, message: "Gagal mengambil booking" });
+    console.error("Error fetching booked appointments:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Gagal mengambil daftar janji temu",
+      details: error.message,
+    });
   }
 };
 

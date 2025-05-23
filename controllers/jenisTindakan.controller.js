@@ -36,9 +36,12 @@ exports.getAllJenisTindakan = async (req, res) => {
   const { page = 1, limit = 5, search } = req.query;
 
   try {
-    let whereClause = {};
+    // Validasi dan parsing parameter halaman & limit
+    const pageNumber = Math.max(1, parseInt(page) || 1);
+    const limitNumber = Math.max(1, Math.min(parseInt(limit) || 5, 100));
 
-    // Filter pencarian berdasarkan nama_tindakan
+    // Buat where clause untuk pencarian
+    let whereClause = {};
     if (search && search.trim()) {
       whereClause.nama_tindakan = {
         contains: search,
@@ -46,24 +49,44 @@ exports.getAllJenisTindakan = async (req, res) => {
       };
     }
 
+    // Hitung total data sesuai filter
     const totalItems = await prisma.jenis_Tindakan.count({
       where: whereClause,
     });
 
-    const { skip, limit: parsedLimit } = getPagination(page, limit);
+    // Hitung skip & take untuk pagination
+    const { skip, take } = getPagination(pageNumber, limitNumber);
 
+    // Ambil data dengan pagination
     const tindakanList = await prisma.jenis_Tindakan.findMany({
       where: whereClause,
       skip,
-      take: parsedLimit,
+      take,
     });
 
-    const meta = getPaginationMeta(totalItems, parsedLimit, parseInt(page));
+    // Hitung metadata pagination
+    const meta = getPaginationMeta(totalItems, take, pageNumber);
 
-    res.json({ success: true, data: tindakanList, meta });
+    // Kirim respons JSON yang selaras
+    return res.json({
+      success: true,
+      data: tindakanList,
+      meta: {
+        totalItems: meta.totalItems,
+        page: meta.page,
+        totalPages: meta.totalPages,
+        hasNextPage: meta.hasNextPage,
+        hasPrevPage: meta.hasPrevPage,
+        itemCount: take,
+      },
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Gagal mengambil daftar tindakan" });
+    console.error("Error fetching jenis tindakan:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Gagal mengambil daftar jenis tindakan",
+      error: error.message,
+    });
   }
 };
 

@@ -8,11 +8,13 @@ router.patch("/:id/book", authMiddleware, janjiTemu.bookJanjiTemu);
 
 //admin
 router.get("/booked", authMiddleware, janjiTemu.getBookedJanjiTemu); // Hanya yang dipesan
+// Riwayat pasien
 router.get(
   "/booked/:id_pasien",
   authMiddleware,
   janjiTemu.getBookedJanjiTemuByPasien
-); // Riwayat pasien
+);
+
 router.put("/confirm/:id", authMiddleware, janjiTemu.confirmJanjiTemu); // Konfirmasi/tolak
 router.put("/updatePayment/:id", authMiddleware, janjiTemu.updatePayment);
 

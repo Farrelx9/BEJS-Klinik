@@ -46,7 +46,6 @@ model Pasien {
   rekamMedis     Rekam_Medis[]
   pembayaran     Pembayaran[]
   notifikasi     Notifikasi[]
-  riwayat        Riwayat[]
 }
 
 model Otp {
@@ -72,16 +71,6 @@ model Notifikasi {
   pasien        Pasien   @relation(fields: [id_pasien], references: [id_pasien])
 }
 
-model Riwayat {
-  id_riwayat    String   @id @default(cuid())
-  judul         String
-  pesan         String
-  id_pasien     String
-  createdAt     DateTime @default(now())
-
-  pasien        Pasien   @relation(fields: [id_pasien], references: [id_pasien])
-}
-
 model JanjiTemu {
   id_janji      String   @id @default(cuid())
   id_pasien     String?
@@ -96,31 +85,43 @@ model JanjiTemu {
 }
 
 model Konsultasi_Chat {
-  id_chat       String   @id @default(cuid())
-  id_pasien     String
+  id_chat       String      @id @default(cuid())
+  id_pasien     String?
   waktu_mulai   DateTime
   waktu_selesai DateTime?
   status        String
-  pesan         String?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime    @default(now())
 
-  pasien        Pasien   @relation(fields: [id_pasien], references: [id_pasien])
+  pasien        Pasien?      @relation(fields: [id_pasien], references: [id_pasien])
   pembayaran    Pembayaran?
+  messages      Pesan_Chat[]
+}
+
+model Pesan_Chat {
+  id_pesan      String        @id @default(cuid())
+  isi           String
+  pengirim      String        // "pasien" / "dokter"
+  waktu_kirim   DateTime      @default(now())
+  id_chat       String
+  chat          Konsultasi_Chat @relation(fields: [id_chat], references: [id_chat])
 }
 
 model Pembayaran {
-  id_pembayaran     String   @id @default(cuid())
-  id_konsultasi     String   @unique
-  metode_pembayaran String
-  jumlah            Int
-  status            String
-  tanggal_bayar     DateTime?
-  bukti_pembayaran  String?
-  createdAt         DateTime @default(now())
+  id_pembayaran      String   @id @default(cuid())
+  id_konsultasi      String   @unique
+  metode_pembayaran  String
+  jumlah             Int
+  status             String
+  tanggal_bayar      DateTime?
+  bukti_pembayaran   String?
+  createdAt          DateTime @default(now())
 
-  konsultasiChat    Konsultasi_Chat @relation(fields: [id_konsultasi], references: [id_chat])
-  id_pasien         String?
-  pasien            Pasien?         @relation(fields: [id_pasien], references: [id_pasien])
+  // Relasi ke Konsultasi_Chat
+  konsultasiChat     Konsultasi_Chat @relation(fields: [id_konsultasi], references: [id_chat])
+
+  // Ambil info pasien via konsultasiChat.id_pasien
+  pasien             Pasien? @relation(fields: [id_pasien], references: [id_pasien])
+  id_pasien          String?
 }
 
 model Jenis_Tindakan {

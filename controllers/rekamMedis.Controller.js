@@ -49,7 +49,11 @@ exports.getAllRekamMedis = async (req, res) => {
     const { skip, take } = getPagination(page, limit);
     const searchTerm = search.trim();
 
+    // Ambil semua rekam medis dari database
     const allRecords = await prisma.rekam_Medis.findMany({
+      include: {
+        pasien: true,
+      },
       where: {
         OR: [
           {
@@ -74,14 +78,12 @@ exports.getAllRekamMedis = async (req, res) => {
           },
         ],
       },
-      include: {
-        pasien: true,
-      },
       orderBy: {
         createdAt: "desc",
       },
     });
 
+    // Validasi apakah ada data
     if (!allRecords.length) {
       return res.json({
         data: [],
@@ -89,34 +91,43 @@ exports.getAllRekamMedis = async (req, res) => {
       });
     }
 
-    // Grup berdasarkan id_pasien
-    const groupedMap = {};
-    for (const record of allRecords) {
-      if (!record.id_pasien) continue;
-      const currentPasienId = record.id_pasien;
+    // Urutkan berdasarkan tanggal terbaru
+    const sortedByDate = [...allRecords].sort(
+      (a, b) =>
+        new Date(b.tanggal || b.createdAt) - new Date(a.tanggal || a.createdAt)
+    );
 
-      if (!groupedMap[currentPasienId]) {
-        groupedMap[currentPasienId] = record;
+    // Grup hanya ambil satu rekam medis terbaru per pasien
+    const groupedMap = {};
+    for (const record of sortedByDate) {
+      const pasienId = record.id_pasien;
+
+      if (!pasienId) {
+        console.warn("Record tanpa id_pasien:", record);
+        continue;
+      }
+
+      if (!groupedMap[pasienId]) {
+        groupedMap[pasienId] = record;
       }
     }
 
     const latestPerPasien = Object.values(groupedMap);
 
-    if (latestPerPasien.length === 0) {
-      return res.json({
-        data: [],
-        meta: getPaginationMeta(0, take, parseInt(page)),
-      });
-    }
-
-    const totalItems = latestPerPasien.length;
+    // Pagination setelah grouping
     const paginatedData = latestPerPasien.slice(skip, skip + take);
 
+    // Hitung total items
+    const totalItems = latestPerPasien.length;
+    const meta = getPaginationMeta(totalItems, take, parseInt(page));
+
+    // Kirim response ke frontend
     return res.json({
       data: paginatedData.map((record) => ({
         id_rekam_medis: record.id_rekam_medis,
         id_pasien: record.id_pasien,
 
+        // 🔹 Data pasien
         nama_pasien: record.pasien?.nama || "-",
         alamat_pasien: record.pasien?.alamat || "-",
         jenis_kelamin_pasien: record.pasien?.jenis_kelamin || "-",
@@ -124,15 +135,24 @@ exports.getAllRekamMedis = async (req, res) => {
           ? new Date(record.pasien.tanggal_lahir).toISOString().split("T")[0]
           : null,
 
+        // 🔹 Field rekam medis
         keluhan: record.keluhan || "-",
         diagnosa: record.diagnosa || "-",
         tindakan: record.tindakan || "-",
         resep_obat: record.resep_obat || "-",
         dokter: record.dokter || "-",
-        tanggal: record.tanggal.toISOString().split("T")[0],
+        tanggal: record.tanggal
+          ? new Date(record.tanggal).toISOString().split("T")[0]
+          : new Date(record.createdAt).toISOString().split("T")[0],
         createdAt: record.createdAt,
       })),
-      meta: getPaginationMeta(totalItems, take, parseInt(page)),
+      meta: {
+        totalItems,
+        currentPage: meta.page,
+        totalPages: meta.totalPages,
+        hasNextPage: meta.hasNextPage,
+        hasPrevPage: meta.hasPrevPage,
+      },
     });
   } catch (error) {
     console.error("Error fetching medical records:", error.message);
