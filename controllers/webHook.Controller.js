@@ -5,29 +5,36 @@ exports.handleWebhook = async (req, res) => {
   const { transaction_status, order_id } = req.body;
 
   if (!transaction_status || !order_id) {
-    return res.status(400).send("Data transaksi tidak lengkap");
+    return res.status(400).json({ error: "Data transaksi tidak lengkap" });
   }
 
   try {
-    let status;
+    let paymentStatus;
     switch (transaction_status) {
       case "settlement":
       case "capture":
-        status = "sukses";
+        paymentStatus = "sukses";
         break;
       case "pending":
-        status = "pending";
+        paymentStatus = "pending";
         break;
       default:
-        status = "gagal";
+        paymentStatus = "gagal";
     }
 
-    // Update pembayaran
+    // Ekstrak id_chat dari order_id
+    const id_chat = order_id.split("-")[1];
+
+    if (!id_chat) {
+      return res.status(400).json({ error: "Order ID tidak valid" });
+    }
+
+    // Update status pembayaran
     const updatedPayment = await prisma.pembayaran.update({
-      where: { id_konsultasi: order_id },
+      where: { id_konsultasi: id_chat },
       data: {
-        status,
-        tanggal_bayar: status === "sukses" ? new Date() : undefined,
+        status: paymentStatus,
+        tanggal_bayar: paymentStatus === "sukses" ? new Date() : undefined,
       },
     });
 
@@ -35,21 +42,10 @@ exports.handleWebhook = async (req, res) => {
       throw new Error("Gagal update pembayaran");
     }
 
-    // Update konsultasi chat jika sukses
-    if (status === "sukses") {
-      const chatExists = await prisma.konsultasi_Chat.findUnique({
-        where: { id_chat: order_id },
-      });
-
-      if (!chatExists) {
-        console.error(`Chat dengan id_chat ${order_id} tidak ditemukan.`);
-        return res
-          .status(404)
-          .json({ success: false, message: "Chat tidak ditemukan." });
-      }
-
+    // Update status konsultasi_Chat jika pembayaran sukses
+    if (paymentStatus === "sukses") {
       await prisma.konsultasi_Chat.update({
-        where: { id_chat: order_id },
+        where: { id_chat },
         data: { status: "dibayar" },
       });
     }
