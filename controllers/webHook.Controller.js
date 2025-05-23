@@ -23,10 +23,22 @@ exports.handleWebhook = async (req, res) => {
     }
 
     // Ekstrak id_chat dari order_id
-    const id_chat = order_id.split("-")[1];
+    const match = order_id.match(/^ORDER-(.+?)-\d+-\d+/);
+    const id_chat = match ? match[1] : null;
 
     if (!id_chat) {
       return res.status(400).json({ error: "Order ID tidak valid" });
+    }
+
+    // Validasi apakah jadwal chat ada di database
+    const konsultasi = await prisma.konsultasi_Chat.findUnique({
+      where: { id_chat },
+    });
+
+    if (!konsultasi) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Jadwal chat tidak ditemukan." });
     }
 
     // Update status pembayaran
