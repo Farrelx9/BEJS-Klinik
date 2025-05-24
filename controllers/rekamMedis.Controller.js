@@ -161,7 +161,6 @@ exports.getAllRekamMedis = async (req, res) => {
 };
 
 // === 3. Ambil Semua Riwayat Rekam Medis Berdasarkan ID Pasien ===
-// === 3. Ambil Semua Riwayat Rekam Medis Berdasarkan ID Pasien ===
 exports.getRekamMedisByPasien = async (req, res) => {
   const { id_pasien } = req.params;
 
