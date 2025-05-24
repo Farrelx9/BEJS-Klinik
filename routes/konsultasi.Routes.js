@@ -59,4 +59,4 @@ router.patch(
 router.get("/chat/admin/detail/:id_chat", konsultasi.getChatDetail);
 
 // 11
-router.get("/chat/pasien/:id_pasien", konsultasi.getChatDetail);
+router.get("/chat/pasien/:id_pasien", konsultasi.getChatListForPasien);
