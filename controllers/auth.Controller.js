@@ -8,6 +8,7 @@ const {
 } = require("./notifikasi.controller");
 const sendEmail = require("../utils/sendEmail");
 const getRenderedHtml = require("../utils/getRenderedHtml");
+const imagekit = require("../utils/imagekit");
 // const path = require("path");
 // const fs = require("fs");
 
@@ -380,9 +381,7 @@ exports.getProfile = async (req, res) => {
             alamat: user.pasien.alamat || null,
             tanggal_lahir: user.pasien.tanggal_lahir || null,
             jenis_kelamin: user.pasien.jenis_kelamin || null,
-            profilePicture: user.pasien.profilePicture
-              ? `http://localhost:3000/uploads/profile/${user.pasien.profilePicture}`
-              : null,
+            profilePicture: user.pasien.profilePicture || null,
           }
         : null,
       createdAt: user.createdAt,
@@ -547,7 +546,22 @@ exports.updateProfile = async (req, res) => {
     if (alamat) updateData.alamat = alamat;
     if (tanggal_lahir) updateData.tanggal_lahir = new Date(tanggal_lahir);
     if (jenis_kelamin) updateData.jenis_kelamin = jenis_kelamin;
-    if (profilePicture) updateData.profilePicture = profilePicture.filename;
+
+    // Upload ke ImageKit jika ada file
+    if (profilePicture) {
+      try {
+        const uploadResponse = await imagekit.upload({
+          file: profilePicture.buffer,
+          fileName: `${Date.now()}-${profilePicture.originalname}`,
+          folder: "/profile-pictures",
+        });
+
+        updateData.profilePicture = uploadResponse.url;
+      } catch (error) {
+        console.error("Error uploading to ImageKit:", error);
+        return res.status(500).json({ message: "Gagal mengupload gambar" });
+      }
+    }
 
     // Jika pasien belum ada, buat baru
     if (!user.pasien) {
@@ -583,9 +597,7 @@ exports.updateProfile = async (req, res) => {
               alamat: updatedUser.pasien.alamat,
               tanggal_lahir: updatedUser.pasien.tanggal_lahir,
               jenis_kelamin: updatedUser.pasien.jenis_kelamin,
-              profilePicture: updatedUser.pasien.profilePicture
-                ? `http://localhost:3000/uploads/profile/${updatedUser.pasien.profilePicture}`
-                : undefined,
+              profilePicture: updatedUser.pasien.profilePicture || null,
             }
           : null,
       },

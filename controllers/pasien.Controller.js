@@ -53,9 +53,7 @@ exports.getAllPasien = async (req, res) => {
       alamat: p.alamat,
       tanggal_lahir: p.tanggal_lahir,
       jenis_kelamin: p.jenis_kelamin,
-      profilePicture: p.profilePicture
-        ? `http://localhost:3000/uploads/profile/${p.profilePicture}`
-        : null,
+      profilePicture: p.profilePicture || null,
       createdAt: p.createdAt,
     }));
 
