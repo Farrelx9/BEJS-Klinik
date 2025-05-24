@@ -41,25 +41,46 @@ exports.mulaiSesiChat = async (req, res) => {
 
 // 2. Kirim pesan ke chat
 exports.kirimPesan = async (req, res) => {
-  const { isi, pengirim, id_chat } = req.body;
+  const { isi, id_chat } = req.body;
+  const pengirim = req.user.role; // Ambil dari middleware auth (admin/pasien)
+  const userId = req.user.id;
 
-  if (!isi || !pengirim || !id_chat) {
+  if (!isi || !id_chat) {
     return res.status(400).json({
       success: false,
-      message: "Semua field (isi, pengirim, id_chat) harus diisi",
+      message: "Isi dan ID chat wajib diisi",
     });
   }
 
   try {
     const chatSession = await prisma.konsultasi_Chat.findUnique({
       where: { id_chat },
-      include: { pasien: { include: { user: true } } },
+      include: {
+        pasien: true,
+        dokter: true,
+      },
     });
 
     if (!chatSession || chatSession.status !== "aktif") {
       return res.status(400).json({
         success: false,
         message: "Sesi chat tidak aktif atau tidak ditemukan",
+      });
+    }
+
+    // Validasi pengirim
+    let isAuthorized = false;
+
+    if (pengirim === "dokter") {
+      isAuthorized = true; // Admin boleh kirim ke semua chat aktif
+    } else if (pengirim === "pasien" && chatSession.id_pasien === userId) {
+      isAuthorized = true; // Pasien hanya bisa kirim ke sesi miliknya
+    }
+
+    if (!isAuthorized) {
+      return res.status(403).json({
+        success: false,
+        message: "Anda tidak diizinkan mengirim pesan di sesi ini",
       });
     }
 
