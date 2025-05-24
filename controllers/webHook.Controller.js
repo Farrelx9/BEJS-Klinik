@@ -22,23 +22,36 @@ exports.handleWebhook = async (req, res) => {
         paymentStatus = "gagal";
     }
 
-    // Ekstrak id_chat dari order_id
-    const match = order_id.match(/^ORDER-(.+?)-\d+-\d+/);
-    const id_chat = match ? match[1] : null;
+    // ✅ Gunakan langsung order_id sebagai id_chat
+    const id_chat = order_id;
 
-    if (!id_chat) {
-      return res.status(400).json({ error: "Order ID tidak valid" });
+    console.log("Order ID:", order_id);
+    console.log("Ekstrak id_chat:", id_chat);
+    console.log("Status Transaksi Midtrans:", transaction_status);
+    console.log("Status Pembayaran Baru:", paymentStatus);
+
+    // Validasi apakah pembayaran ada di database
+    const existingPayment = await prisma.pembayaran.findUnique({
+      where: { id_konsultasi: id_chat },
+    });
+
+    if (!existingPayment) {
+      return res.status(404).json({
+        success: false,
+        message: "Pembayaran tidak ditemukan.",
+      });
     }
 
     // Validasi apakah jadwal chat ada di database
     const konsultasi = await prisma.konsultasi_Chat.findUnique({
-      where: { id_chat },
+      where: { id_chat: id_chat },
     });
 
     if (!konsultasi) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Jadwal chat tidak ditemukan." });
+      return res.status(404).json({
+        success: false,
+        message: "Jadwal chat tidak ditemukan.",
+      });
     }
 
     // Update status pembayaran
@@ -62,9 +75,12 @@ exports.handleWebhook = async (req, res) => {
       });
     }
 
-    return res.status(200).send("OK");
+    return res.status(200).json({
+      success: true,
+      message: "Status berhasil diperbarui",
+    });
   } catch (error) {
     console.error("Error handling webhook:", error.message);
-    return res.status(500).send("Internal Server Error");
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };
