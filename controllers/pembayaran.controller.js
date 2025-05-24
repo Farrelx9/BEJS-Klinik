@@ -112,8 +112,7 @@ exports.buatTransaksi = async (req, res) => {
           name: "Konsultasi Chat",
         },
       ],
-      // Anda bisa tambahkan callback_url di sini untuk Midtrans agar tahu ke mana mengirim webhook
-      // callback_url: "[URL_BACKEND_ANDA]/api/pembayaran/webhook"
+      callback_url: "https://bejs-klinik.vercel.app/midtrans/webhook ",
     };
     console.log(
       "Memanggil Midtrans createTransaction dengan parameter:",

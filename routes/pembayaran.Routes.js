@@ -9,9 +9,9 @@ router.post("/chat/bayar", authMiddleware, pembayaranController.buatTransaksi);
 
 // Midtrans webhook/callback
 router.post(
-  "/webhook",
+  "/midtrans/webhook",
   express.raw({ type: "application/json" }),
-  webhookController.handleWebhook 
+  webhookController.handleWebhook
 );
 
 // Opsi: cek status manual
