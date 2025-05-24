@@ -281,25 +281,45 @@ exports.getAllChatsForAdmin = async (req, res) => {
   const { page = 1, limit = 5 } = req.query;
 
   try {
-    const data = await prisma.konsultasi_Chat.findMany({
-      where: {
-        id_pasien: {
-          not: null, // Hanya chat yang sudah dibooking oleh pasien
-        },
-      },
-      include: {
-        pasien: true, // Ambil semua field pasien, termasuk 'nama'
-        messages: {
-          orderBy: { waktu_kirim: "desc" },
-          take: 1,
-        },
-      },
-      skip: (page - 1) * limit,
-      take: parseInt(limit),
-      orderBy: { waktu_mulai: "desc" },
-    });
+    const { skip, take } = getPagination(page, limit);
 
-    return res.json({ success: true, data });
+    // Ambil data chat sesuai filter dan pagination
+    const [data, total] = await Promise.all([
+      prisma.konsultasi_Chat.findMany({
+        where: {
+          id_pasien: { not: null }, // Hanya chat yang sudah di-book oleh pasien
+        },
+        include: {
+          pasien: true,
+          messages: {
+            orderBy: { waktu_kirim: "desc" },
+            take: 1,
+          },
+        },
+        skip,
+        take,
+        orderBy: { waktu_mulai: "desc" },
+      }),
+      prisma.konsultasi_Chat.count({
+        where: {
+          id_pasien: { not: null },
+        },
+      }),
+    ]);
+
+    const meta = getPaginationMeta(total, take, page);
+
+    return res.json({
+      success: true,
+      data,
+      meta: {
+        totalItems: meta.totalItems,
+        currentPage: meta.page,
+        totalPages: meta.totalPages,
+        hasNextPage: meta.hasNextPage,
+        hasPrevPage: meta.hasPrevPage,
+      },
+    });
   } catch (error) {
     console.error("Gagal ambil semua chat:", error.message);
     return res.status(500).json({ success: false, message: "Server error" });

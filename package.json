@@ -22,6 +22,7 @@
     "express": "^4.21.2",
     "googleapis": "^148.0.0",
     "http-errors": "~1.6.3",
+    "imagekit": "^6.0.0",
     "jade": "^0.31.2",
     "jsonwebtoken": "^9.0.2",
     "midtrans-client": "^1.4.2",

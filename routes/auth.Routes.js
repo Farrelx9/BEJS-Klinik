@@ -2,23 +2,11 @@ const { Router } = require("express");
 const router = Router();
 const authMiddleware = require("../middlewares/auth");
 const multer = require("multer");
-const path = require("path");
 
 const auth = require("../controllers/auth.Controller");
 
-// Konfigurasi Multer untuk upload file
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, "../uploads/profile")); // Use absolute path
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(
-      null,
-      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
-    );
-  },
-});
+// Konfigurasi Multer untuk memory storage
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage: storage,
@@ -35,7 +23,7 @@ const upload = multer({
     cb(null, true);
   },
   limits: {
-    fileSize: 4 * 1024 * 1024, // Batas ukuran file 2MB
+    fileSize: 6 * 1024 * 1024, // Batas ukuran file 6MB
   },
 });
 
