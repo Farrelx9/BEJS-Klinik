@@ -399,3 +399,63 @@ exports.getChatDetail = async (req, res) => {
     });
   }
 };
+
+// Ambil semua chat untuk pasien tertentu
+exports.getChatListForPasien = async (req, res) => {
+  const { id_pasien } = req.params;
+  const { page = 1, limit = 5 } = req.query;
+
+  try {
+    const { skip, take } = getPagination(page, limit);
+
+    // Ambil semua chat untuk pasien ini
+    const [data, total] = await Promise.all([
+      prisma.konsultasi_Chat.findMany({
+        where: {
+          id_pasien,
+        },
+        include: {
+          pasien: {
+            select: {
+              nama: true,
+            },
+          },
+          messages: {
+            orderBy: { waktu_kirim: "desc" },
+            take: 1,
+          },
+        },
+        skip,
+        take,
+        orderBy: {
+          waktu_mulai: "desc",
+        },
+      }),
+      prisma.konsultasi_Chat.count({
+        where: {
+          id_pasien,
+        },
+      }),
+    ]);
+
+    const meta = getPaginationMeta(total, take, parseInt(page));
+
+    return res.json({
+      success: true,
+      data,
+      meta: {
+        totalItems: meta.totalItems,
+        currentPage: meta.page,
+        totalPages: meta.totalPages,
+        hasNextPage: meta.hasNextPage,
+        hasPrevPage: meta.hasPrevPage,
+      },
+    });
+  } catch (error) {
+    console.error("Gagal ambil daftar chat pasien:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Gagal mengambil daftar chat untuk pasien",
+    });
+  }
+};
