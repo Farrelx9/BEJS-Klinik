@@ -165,6 +165,12 @@ exports.getRekamMedisByPasien = async (req, res) => {
   const { id_pasien } = req.params;
 
   try {
+    // Pastikan id_pasien valid
+    if (!id_pasien) {
+      return res.status(400).json({ error: "ID pasien tidak diberikan" });
+    }
+
+    // Ambil semua rekam medis berdasarkan id_pasien
     const records = await prisma.rekam_Medis.findMany({
       where: { id_pasien },
       include: {
@@ -181,6 +187,7 @@ exports.getRekamMedisByPasien = async (req, res) => {
       });
     }
 
+    // Format data untuk response
     const formattedRecords = records.map((record) => ({
       id_rekam_medis: record.id_rekam_medis,
       id_pasien: record.id_pasien,
