@@ -276,14 +276,19 @@ exports.pilihJadwal = async (req, res) => {
   }
 };
 
-//8
+// 8. Ambil semua chat untuk admin (hanya yang sudah dibooking)
 exports.getAllChatsForAdmin = async (req, res) => {
   const { page = 1, limit = 5 } = req.query;
 
   try {
     const data = await prisma.konsultasi_Chat.findMany({
+      where: {
+        id_pasien: {
+          not: null, // Hanya chat yang sudah dibooking oleh pasien
+        },
+      },
       include: {
-        pasien: true,
+        pasien: true, // Ambil semua field pasien, termasuk 'nama'
         messages: {
           orderBy: { waktu_kirim: "desc" },
           take: 1,
