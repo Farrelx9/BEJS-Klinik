@@ -48,3 +48,9 @@ router.get(
   authMidlleware,
   konsultasi.getAllChatsForAdmin
 );
+
+router.patch(
+  "/admin/aktifkan/:id_chat",
+  authMidlleware,
+  konsultasiController.aktifkanSesiChat
+);

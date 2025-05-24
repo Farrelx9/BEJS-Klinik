@@ -300,3 +300,39 @@ exports.getAllChatsForAdmin = async (req, res) => {
     return res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
+// 9. [Baru] Admin mengaktifkan sesi chat
+exports.aktifkanSesiChat = async (req, res) => {
+  const { id_chat } = req.params;
+
+  try {
+    // Cek apakah sesi ada dan statusnya pending
+    const sesi = await prisma.konsultasi_Chat.findUnique({
+      where: { id_chat },
+    });
+
+    if (!sesi || sesi.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Sesi tidak ditemukan atau bukan status pending",
+      });
+    }
+
+    // Update status menjadi aktif
+    const updatedSesi = await prisma.konsultasi_Chat.update({
+      where: { id_chat },
+      data: {
+        status: "aktif",
+        waktu_mulai: new Date(), // Jika belum punya waktu mulai, isi sekarang
+      },
+    });
+
+    return res.json({ success: true, data: updatedSesi });
+  } catch (error) {
+    console.error("Gagal aktifkan sesi:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Gagal mengaktifkan sesi",
+    });
+  }
+};
