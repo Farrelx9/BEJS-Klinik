@@ -62,6 +62,11 @@ exports.getAllJenisTindakan = async (req, res) => {
       where: whereClause,
       skip,
       take,
+      select: {
+        id_tindakan: true,
+        nama_tindakan: true,
+        harga: true,
+      },
     });
 
     // Hitung metadata pagination
