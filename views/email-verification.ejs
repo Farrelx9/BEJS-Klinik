@@ -22,76 +22,176 @@
     <title></title>
 
     <style type="text/css">
-      @media only screen and (min-width: 620px) {
-        .u-row {
-          width: 600px !important;
-        }
-
-        .u-row .u-col {
-          vertical-align: top;
-        }
-
-        .u-row .u-col-100 {
-          width: 600px !important;
-        }
+      /* Base styles */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
       }
 
-      @media only screen and (max-width: 620px) {
-        .u-row-container {
-          max-width: 100% !important;
-          padding-left: 0px !important;
-          padding-right: 0px !important;
-        }
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100% !important;
+        -webkit-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+        -webkit-font-smoothing: antialiased;
+      }
 
+      table,
+      td {
+        mso-table-lspace: 0pt;
+        mso-table-rspace: 0pt;
+        border-collapse: collapse !important;
+        border-spacing: 0;
+      }
+
+      img {
+        border: 0;
+        height: auto;
+        line-height: 100%;
+        outline: none;
+        text-decoration: none;
+        -ms-interpolation-mode: bicubic;
+        max-width: 100%;
+      }
+
+      /* Responsive styles */
+      @media only screen and (max-width: 620px) {
         .u-row {
           width: 100% !important;
         }
-
         .u-row .u-col {
           display: block !important;
           width: 100% !important;
           min-width: 320px !important;
           max-width: 100% !important;
         }
-
         .u-row .u-col > div {
           margin: 0 auto;
         }
-
         .u-row .u-col img {
+          max-width: 100% !important;
+        }
+        .mobile-padding {
+          padding-left: 10px !important;
+          padding-right: 10px !important;
+        }
+        .mobile-text-center {
+          text-align: center !important;
+        }
+        .mobile-font-size {
+          font-size: 16px !important;
+        }
+        .mobile-button {
+          width: 100% !important;
           max-width: 100% !important;
         }
       }
 
-      body {
-        margin: 0;
+      /* Email client specific fixes */
+      @media screen {
+        @font-face {
+          font-family: "Cabin";
+          font-style: normal;
+          font-weight: 400;
+          src: local("Cabin Regular"), local("Cabin-Regular"),
+            url(https://fonts.gstatic.com/s/cabin/v14/u-4X0qWljRw-PfU81xCKCpdpbgZJl6XFpfEd7eA9BIxxkV2EL7E.woff2)
+              format("woff2");
+          unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
+            U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193,
+            U+2212, U+2215, U+FEFF, U+FFFD;
+        }
+      }
+
+      /* Dark mode support */
+      @media (prefers-color-scheme: dark) {
+        .dark-mode-text {
+          color: #ffffff !important;
+        }
+        .dark-mode-bg {
+          background-color: #1a1a1a !important;
+        }
+      }
+
+      /* Outlook specific fixes */
+      .vml {
+        display: inline-block;
+      }
+
+      /* Button styles */
+      .button {
+        display: inline-block;
+        text-decoration: none;
+        text-align: center;
+        padding: 14px 44px;
+        border-radius: 4px;
+        background-color: #ff6600;
+        color: #ffffff !important;
+        font-weight: bold;
+        font-size: 16px;
+        line-height: 1.2;
+        width: auto;
+        max-width: 100%;
+        word-break: break-word;
+      }
+
+      /* Container styles */
+      .container {
+        width: 100%;
+        max-width: 600px;
+        margin: 0 auto;
         padding: 0;
       }
 
-      table,
-      td,
-      tr {
-        border-collapse: collapse;
-        vertical-align: top;
+      /* Typography */
+      .text-center {
+        text-align: center;
+      }
+      .text-left {
+        text-align: left;
+      }
+      .text-right {
+        text-align: right;
       }
 
-      .ie-container table,
-      .mso-container table {
-        table-layout: fixed;
+      /* Spacing utilities */
+      .p-0 {
+        padding: 0 !important;
+      }
+      .p-1 {
+        padding: 10px !important;
+      }
+      .p-2 {
+        padding: 20px !important;
+      }
+      .p-3 {
+        padding: 30px !important;
+      }
+      .p-4 {
+        padding: 40px !important;
       }
 
-      * {
-        line-height: inherit;
+      /* Color utilities */
+      .bg-primary {
+        background-color: #003399 !important;
       }
-
-      a[x-apple-data-detectors="true"] {
-        color: inherit !important;
-        text-decoration: none !important;
+      .bg-secondary {
+        background-color: #e5eaf5 !important;
       }
-
-      table,
-      td {
-        color: #000000;
+      .bg-white {
+        background-color: #ffffff !important;
+      }
+      .text-white {
+        color: #ffffff !important;
+      }
+      .text-primary {
+        color: #003399 !important;
+      }
+      .text-secondary {
+        color: #e5eaf5 !important;
       }
     </style>
 

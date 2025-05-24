@@ -53,6 +53,7 @@ exports.getAllRekamMedis = async (req, res) => {
     const allRecords = await prisma.rekam_Medis.findMany({
       include: {
         pasien: true,
+        jenisTindakan: true, // 🔹 Ini yang ditambahkan
       },
       where: {
         OR: [
@@ -145,6 +146,9 @@ exports.getAllRekamMedis = async (req, res) => {
           ? new Date(record.tanggal).toISOString().split("T")[0]
           : new Date(record.createdAt).toISOString().split("T")[0],
         createdAt: record.createdAt,
+        // 🔸 Info tambahan dari Jenis_Tindakan
+        nama_tindakan: record.jenisTindakan?.nama_tindakan || "-",
+        harga_tindakan: record.jenisTindakan?.harga || 0,
       })),
       meta: {
         totalItems,
@@ -175,6 +179,7 @@ exports.getRekamMedisByPasien = async (req, res) => {
       where: { id_pasien },
       include: {
         pasien: true,
+        jenisTindakan: true, // 🔹 Ini yang ditambahkan
       },
       orderBy: {
         tanggal: "desc", // Urutkan dari yang terbaru
@@ -204,6 +209,9 @@ exports.getRekamMedisByPasien = async (req, res) => {
       dokter: record.dokter || "-",
       tanggal: record.tanggal.toISOString(), // Kirim ISO string
       createdAt: record.createdAt,
+      // 🔸 Info tambahan dari Jenis_Tindakan
+      nama_tindakan: record.jenisTindakan?.nama_tindakan || "-",
+      harga_tindakan: record.jenisTindakan?.harga || 0,
     }));
 
     return res.json(formattedRecords);
