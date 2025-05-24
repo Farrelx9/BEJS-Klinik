@@ -52,8 +52,8 @@ router.get(
 router.patch(
   "/admin/aktifkan/:id_chat",
   authMidlleware,
-  konsultasiController.aktifkanSesiChat
+  konsultasi.aktifkanSesiChat
 );
 
 //10
-router.get("/chat/admin/detail/:id_chat", konsultasiController.getChatDetail);
+router.get("/chat/admin/detail/:id_chat", konsultasi.getChatDetail);
