@@ -336,3 +336,45 @@ exports.aktifkanSesiChat = async (req, res) => {
     });
   }
 };
+
+// 10. [Baru] Ambil detail chat beserta riwayat pesan
+exports.getChatDetail = async (req, res) => {
+  const { id_chat } = req.params;
+
+  try {
+    // Cari sesi chat berdasarkan id_chat
+    const chatSession = await prisma.konsultasi_Chat.findUnique({
+      where: { id_chat },
+      include: {
+        pasien: {
+          select: {
+            id_pasien: true,
+            user: {
+              select: {
+                name: true, // Pastikan nama pasien diambil
+              },
+            },
+          },
+        },
+        messages: {
+          orderBy: { waktu_kirim: "asc" },
+        },
+      },
+    });
+
+    if (!chatSession) {
+      return res.status(404).json({
+        success: false,
+        message: "Sesi chat tidak ditemukan",
+      });
+    }
+
+    return res.json({ success: true, data: chatSession });
+  } catch (error) {
+    console.error("Gagal ambil detail chat:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Gagal mengambil detail chat",
+    });
+  }
+};
