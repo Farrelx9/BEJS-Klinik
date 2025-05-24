@@ -41,24 +41,28 @@ exports.mulaiSesiChat = async (req, res) => {
 
 // 2. Kirim pesan ke chat
 exports.kirimPesan = async (req, res) => {
-  const { isi, id_chat } = req.body;
-  const pengirim = req.user.role; // Ambil dari middleware auth (admin/pasien)
-  const userId = req.user.id;
+  const { isi, pengirim, id_chat } = req.body;
 
-  if (!isi || !id_chat) {
+  // Validasi input dasar
+  if (!isi || !pengirim || !id_chat) {
     return res.status(400).json({
       success: false,
-      message: "Isi dan ID chat wajib diisi",
+      message: "Semua field (isi, pengirim, id_chat) harus diisi",
+    });
+  }
+
+  // Validasi nilai pengirim
+  if (!["pasien", "admin"].includes(pengirim)) {
+    return res.status(400).json({
+      success: false,
+      message: "Nilai pengirim tidak valid. Harus 'pasien' atau 'admin'",
     });
   }
 
   try {
+    // Cek apakah sesi chat ada dan aktif
     const chatSession = await prisma.konsultasi_Chat.findUnique({
       where: { id_chat },
-      include: {
-        pasien: true,
-        dokter: true,
-      },
     });
 
     if (!chatSession || chatSession.status !== "aktif") {
@@ -68,22 +72,7 @@ exports.kirimPesan = async (req, res) => {
       });
     }
 
-    // Validasi pengirim
-    let isAuthorized = false;
-
-    if (pengirim === "dokter") {
-      isAuthorized = true; // Admin boleh kirim ke semua chat aktif
-    } else if (pengirim === "pasien" && chatSession.id_pasien === userId) {
-      isAuthorized = true; // Pasien hanya bisa kirim ke sesi miliknya
-    }
-
-    if (!isAuthorized) {
-      return res.status(403).json({
-        success: false,
-        message: "Anda tidak diizinkan mengirim pesan di sesi ini",
-      });
-    }
-
+    // Buat pesan baru
     const pesanBaru = await prisma.pesan_Chat.create({
       data: {
         isi,
@@ -92,7 +81,10 @@ exports.kirimPesan = async (req, res) => {
       },
     });
 
-    return res.json({ success: true, data: pesanBaru });
+    return res.json({
+      success: true,
+      data: pesanBaru,
+    });
   } catch (error) {
     console.error("Gagal mengirim pesan:", error.message);
     return res.status(500).json({
