@@ -5,11 +5,27 @@ class JadwalController {
   // Ambil semua jadwal
   async getAllJadwal(req, res) {
     try {
+      const { date } = req.query; // ambil dari query string
+      let whereClause = {};
+
+      if (date) {
+        const startDate = new Date(date);
+        const endDate = new Date(date);
+        endDate.setDate(startDate.getDate() + 1); // batas sampai besok
+
+        whereClause = {
+          waktu: {
+            gte: startDate,
+            lt: endDate,
+          },
+        };
+      }
+
       const jadwalList = await prisma.jadwal.findMany({
-        orderBy: {
-          waktu: "asc",
-        },
+        where: whereClause,
+        orderBy: { waktu: "asc" },
       });
+
       return res.status(200).json(jadwalList);
     } catch (error) {
       console.error("Error fetching jadwal:", error);
