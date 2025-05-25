@@ -150,3 +150,12 @@ model Rekam_Medis {
 
   pasien         Pasien   @relation(fields: [id_pasien], references: [id_pasien])
 }
+
+model Jadwal {
+  id          String   @id @default(cuid())
+  waktu       DateTime
+  deskripsi   String
+  pasien      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
