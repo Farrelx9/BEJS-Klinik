@@ -20,8 +20,7 @@ async function generateJadwalChat() {
     await prisma.konsultasi_Chat.deleteMany({
       where: {
         waktu_mulai: {
-          gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
-          lte: nextMonth,
+          lte: nextMonth, // Hapus semua jadwal hingga bulan depan
         },
         id_pasien: null, // Belum dipilih pasien
         status: "tersedia", // Hanya yang tersedia
