@@ -210,7 +210,7 @@ exports.confirmJanjiTemu = async (req, res) => {
       judulNotif = "Janji Temu Dikonfirmasi";
       pesanNotif = `Janji temu Anda pada ${new Date(
         janjiTemu.tanggal_waktu
-      ).toLocaleString("id-ID")} telah dikonfirmasi.`;
+      ).toLocaleString("id-ID")} telah dikonfirmasi. Jangan lupa ya!`;
     } else if (status === "cancelled") {
       judulNotif = "Janji Temu Dibatalkan";
       pesanNotif = `Sayangnya, janji temu Anda pada ${new Date(
