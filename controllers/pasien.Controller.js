@@ -143,13 +143,45 @@ exports.deletePasien = async (req, res) => {
   }
 
   try {
-    await prisma.pasien.delete({
-      where: { id_pasien },
+    // Hapus semua relasi terlebih dahulu dalam transaksi
+    await prisma.$transaction(async (prisma) => {
+      // Hapus rekam medis yang terkait (kemungkinan punya relasi lanjutan)
+      await prisma.rekam_Medis.deleteMany({
+        where: { id_pasien },
+      });
+
+      // Hapus pesan chat yang terkait
+      await prisma.pesan_Chat.deleteMany({
+        where: { id_pasien },
+      });
+
+      // Hapus janji temu yang terkait
+      await prisma.janjiTemu.deleteMany({
+        where: { id_pasien },
+      });
+
+      // Hapus konsultasi chat yang terkait
+      await prisma.konsultasi_Chat.deleteMany({
+        where: { id_pasien },
+      });
+
+      // Hapus pembayaran yang terkait
+      await prisma.pembayaran.deleteMany({
+        where: { id_pasien },
+      });
+
+      // Terakhir hapus pasien itu sendiri
+      await prisma.pasien.delete({
+        where: { id_pasien },
+      });
     });
 
-    return res.json({ message: "Pasien berhasil dihapus" });
+    return res.json({ message: "Pasien dan data terkait berhasil dihapus" });
   } catch (error) {
     console.error("Gagal menghapus pasien:", error.message);
-    return res.status(500).json({ error: "Gagal menghapus pasien" });
+    return res.status(500).json({
+      error: "Gagal menghapus pasien",
+      details: error.message,
+    });
   }
 };
