@@ -199,23 +199,30 @@ exports.confirmJanjiTemu = async (req, res) => {
     let judulNotif = "";
     let pesanNotif = "";
 
-    const formattedDate = new Date(janjiTemu.tanggal_waktu)
-      .toLocaleString("id-ID", {
+    if (status === "confirmed") {
+      judulNotif = "Janji Temu Dikonfirmasi";
+      pesanNotif = `Janji temu Anda pada ${new Date(
+        janjiTemu.tanggal_waktu
+      ).toLocaleString("id-ID", {
         day: "numeric",
         month: "long",
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
         timeZoneName: "short",
-      })
-      .replace("GMT+07:00", "WIB");
-
-    if (status === "confirmed") {
-      judulNotif = "Janji Temu Dikonfirmasi";
-      pesanNotif = `Janji temu Anda pada ${formattedDate} telah dikonfirmasi.`;
+      })} telah dikonfirmasi.`;
     } else if (status === "cancelled") {
       judulNotif = "Janji Temu Dibatalkan";
-      pesanNotif = `Sayangnya, janji temu Anda pada ${formattedDate} dibatalkan oleh admin.`;
+      pesanNotif = `Sayangnya, janji temu Anda pada ${new Date(
+        janjiTemu.tanggal_waktu
+      ).toLocaleString("id-ID", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZoneName: "short",
+      })} dibatalkan oleh admin.`;
     }
 
     let notifSuccess = true;
