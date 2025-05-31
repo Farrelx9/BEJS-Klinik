@@ -2,23 +2,36 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const cron = require("node-cron");
 
+// Import dayjs dan plugin yang diperlukan
+const dayjs = require("dayjs");
+const timezone = require("dayjs/plugin/timezone");
+const utc = require("dayjs/plugin/utc");
+
+// Extend dayjs dengan plugin
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+// Fungsi utama generate janji temu
 async function generateJanjiTemu() {
   try {
     console.log("🔄 generateJanjiTemu dimulai...");
 
     await prisma.$connect();
 
-    const now = new Date();
-    const nextMonth = new Date(now);
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    // Gunakan dayjs dengan zona waktu Jakarta/WIB
+    const now = dayjs().tz("Asia/Jakarta");
+    const nextMonth = now.add(1, "month");
+
+    const startDate = now.toDate();
+    const endDate = nextMonth.toDate();
 
     console.log(
-      `📅 Membersihkan janji temu tersedia dari ${now} hingga ${nextMonth}`
+      `📅 Membersihkan janji temu tersedia dari ${startDate} hingga ${endDate}`
     );
     await prisma.janjiTemu.deleteMany({
       where: {
         tanggal_waktu: {
-          lte: nextMonth,
+          lte: endDate,
         },
         id_pasien: null,
         status: "tersedia",
@@ -28,15 +41,22 @@ async function generateJanjiTemu() {
     console.log("✅ Janji temu lama dihapus");
 
     const workHours = ["16:00", "17:00", "18:00", "19:00", "20:00"];
-    let currentDate = new Date(now);
 
-    while (currentDate <= nextMonth) {
-      const dayOfWeek = currentDate.getDay();
+    let currentDay = dayjs(startDate).tz("Asia/Jakarta"); // mulai dari hari ini
+
+    while (currentDay.isBefore(nextMonth)) {
+      const dayOfWeek = currentDay.day(); // 0 = Minggu, 6 = Sabtu
+
       if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        // Senin - Jumat
         for (let time of workHours) {
           const [hour, minute] = time.split(":").map(Number);
-          const appointmentTime = new Date(currentDate);
-          appointmentTime.setHours(hour, minute, 0, 0);
+          const appointmentTime = currentDay
+            .hour(hour)
+            .minute(minute)
+            .second(0)
+            .millisecond(0)
+            .toDate();
 
           const existing = await prisma.janjiTemu.findFirst({
             where: { tanggal_waktu: appointmentTime },
@@ -56,7 +76,7 @@ async function generateJanjiTemu() {
         }
       }
 
-      currentDate.setDate(currentDate.getDate() + 1);
+      currentDay = currentDay.add(1, "day"); // lanjut ke hari berikutnya
     }
 
     console.log("🎉 Generate janji temu selesai.");
@@ -67,19 +87,21 @@ async function generateJanjiTemu() {
   }
 }
 
-// // Jalankan manual untuk test
+// Jalankan manual untuk test (opsional)
 // (async () => {
 //   await generateJanjiTemu();
 // })();
 
 // Atur cron job
 cron.schedule(
-  "0 0 * * *",
+  "0 0 * * *", // Setiap hari jam 00:00
   async () => {
     console.log("⏰ Cron job diaktifkan...");
     await generateJanjiTemu();
   },
   {
-    timezone: "Asia/Jakarta",
+    timezone: "Asia/Jakarta", // Pastikan cron berjalan di zona waktu WIB
   }
 );
+
+module.exports = { generateJanjiTemu };
