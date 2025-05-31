@@ -117,12 +117,22 @@ async function handleUserRegistration(userId) {
 async function handleJanjiTemuCreated(janjiTemu) {
   const { id_pasien } = janjiTemu;
 
+  // Format tanggal & waktu dalam satu string lokal Indonesia
+  const formattedDate = new Date(janjiTemu.tanggal_waktu)
+    .toLocaleString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZoneName: "short",
+    })
+    .replace("GMT+07:00", "WIB");
+
   await sendNotification(
     id_pasien,
     "Janji Temu Dibuat",
-    `Anda telah membuat janji temu pada ${new Date(
-      janjiTemu.tanggal_waktu
-    ).toLocaleString("id-ID")}.`
+    `Anda telah membuat janji temu pada ${formattedDate}.`
   );
 }
 
