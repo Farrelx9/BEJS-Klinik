@@ -164,4 +164,5 @@ module.exports = {
   markAllNotificationsAsRead,
   handleProfileUpdate,
   handleChangePassword,
+  sendNotification,
 };
