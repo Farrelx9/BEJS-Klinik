@@ -2,6 +2,7 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const { handleJanjiTemuCreated } = require("./notifikasi.controller");
 const { getPagination, getPaginationMeta } = require("../utils/pagination");
+const { sendNotification } = require("./notifikasi.controller");
 
 exports.getAvailableJanjiTemu = async (req, res) => {
   try {
@@ -211,11 +212,12 @@ exports.confirmJanjiTemu = async (req, res) => {
     }
 
     let notifSuccess = true;
+
     if (janjiTemu.id_pasien) {
       try {
         await sendNotification(janjiTemu.id_pasien, judulNotif, pesanNotif);
       } catch (notifError) {
-        console.error("Gagal kirim notifikasi:", notifError);
+        console.error("Gagal kirim notifikasi:", notifError.message);
         notifSuccess = false;
       }
     }
@@ -232,9 +234,10 @@ exports.confirmJanjiTemu = async (req, res) => {
       id: id,
       body: req.body,
     });
-    return res
-      .status(500)
-      .json({ success: false, message: "Gagal mengonfirmasi janji temu" });
+    return res.status(500).json({
+      success: false,
+      message: "Gagal mengonfirmasi janji temu",
+    });
   }
 };
 
