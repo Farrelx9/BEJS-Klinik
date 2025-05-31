@@ -168,7 +168,6 @@ exports.getBookedJanjiTemuByPasien = async (req, res) => {
 
 //admin
 
-// Di bagian exports, tambahkan fungsi baru:
 exports.confirmJanjiTemu = async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
@@ -180,12 +179,9 @@ exports.confirmJanjiTemu = async (req, res) => {
   }
 
   try {
-    // Ambil data janji temu untuk dapatkan id_pasien
     const janjiTemu = await prisma.janjiTemu.findUnique({
       where: { id_janji: id },
-      include: {
-        pasien: true,
-      },
+      include: { pasien: true },
     });
 
     if (!janjiTemu) {
@@ -194,15 +190,11 @@ exports.confirmJanjiTemu = async (req, res) => {
         .json({ success: false, message: "Janji temu tidak ditemukan" });
     }
 
-    // Perbarui status janji temu
     const updated = await prisma.janjiTemu.update({
       where: { id_janji: id },
-      data: {
-        status,
-      },
+      data: { status },
     });
 
-    // Kirim notifikasi ke pasien
     let judulNotif = "";
     let pesanNotif = "";
 
@@ -210,7 +202,7 @@ exports.confirmJanjiTemu = async (req, res) => {
       judulNotif = "Janji Temu Dikonfirmasi";
       pesanNotif = `Janji temu Anda pada ${new Date(
         janjiTemu.tanggal_waktu
-      ).toLocaleString("id-ID")} telah dikonfirmasi. Jangan lupa ya!`;
+      ).toLocaleString("id-ID")} telah dikonfirmasi.`;
     } else if (status === "cancelled") {
       judulNotif = "Janji Temu Dibatalkan";
       pesanNotif = `Sayangnya, janji temu Anda pada ${new Date(
@@ -218,16 +210,34 @@ exports.confirmJanjiTemu = async (req, res) => {
       ).toLocaleString("id-ID")} dibatalkan oleh admin.`;
     }
 
-    await sendNotification(janjiTemu.id_pasien, judulNotif, pesanNotif);
+    let notifSuccess = true;
+    if (janjiTemu.id_pasien) {
+      try {
+        await sendNotification(janjiTemu.id_pasien, judulNotif, pesanNotif);
+      } catch (notifError) {
+        console.error("Gagal kirim notifikasi:", notifError);
+        notifSuccess = false;
+      }
+    }
 
-    return res.json({ success: true, data: updated });
+    return res.json({
+      success: true,
+      data: updated,
+      notificationSent: notifSuccess,
+    });
   } catch (error) {
-    console.error("Error confirming appointment:", error);
+    console.error("Error confirming appointment:", {
+      error: error.message,
+      stack: error.stack,
+      id: id,
+      body: req.body,
+    });
     return res
       .status(500)
       .json({ success: false, message: "Gagal mengonfirmasi janji temu" });
   }
 };
+
 //book admin
 exports.getBookedJanjiTemu = async (req, res) => {
   const { page = 1, limit = 5, statusFilter, search } = req.query;
