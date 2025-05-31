@@ -120,7 +120,9 @@ async function handleJanjiTemuCreated(janjiTemu) {
   await sendNotification(
     id_pasien,
     "Janji Temu Dibuat",
-    `Anda telah membuat janji temu pada ${janjiTemu.tanggal_waktu.toDateString()}.`
+    `Anda telah membuat janji temu pada ${new Date(
+      janjiTemu.tanggal_waktu
+    ).toLocaleString("id-ID")}.`
   );
 }
 
