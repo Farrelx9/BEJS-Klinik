@@ -18,9 +18,9 @@ async function generateJanjiTemu() {
     await prisma.janjiTemu.deleteMany({
       where: {
         tanggal_waktu: {
-          gte: now,
           lte: nextMonth,
         },
+        id_pasien: null,
         status: "tersedia",
       },
     });
