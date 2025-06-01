@@ -152,7 +152,7 @@ exports.deletePasien = async (req, res) => {
 
       // Hapus pesan chat yang terkait
       await prisma.pesan_Chat.deleteMany({
-        where: { id_pesan },
+        where: { id_chat },
       });
 
       // Hapus janji temu yang terkait
