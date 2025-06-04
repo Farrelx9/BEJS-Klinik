@@ -57,7 +57,6 @@ exports.getAllJenisTindakan = async (req, res) => {
     // Hitung skip & take untuk pagination
     const { skip, take } = getPagination(pageNumber, limitNumber);
 
-    // Ambil data dengan pagination
     const tindakanList = await prisma.jenis_Tindakan.findMany({
       where: whereClause,
       skip,
@@ -67,8 +66,11 @@ exports.getAllJenisTindakan = async (req, res) => {
         nama_tindakan: true,
         harga: true,
       },
+      orderBy: {
+        createdAt: "desc", // <-- URUTKAN BERDASARKAN CREATED AT TERBARU
+      },
     });
-
+    
     // Hitung metadata pagination
     const meta = getPaginationMeta(totalItems, take, pageNumber);
 
