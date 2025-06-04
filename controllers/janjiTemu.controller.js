@@ -152,7 +152,7 @@ exports.getBookedJanjiTemuByPasien = async (req, res) => {
         createdAt: "desc", // <-- tetap gunakan ini...
       },
     });
-
+    console.log("Fetched Appointments (sorted):", bookedAppointments);
     const meta = getPaginationMeta(totalItems, take, parseInt(page));
 
     res.json({
