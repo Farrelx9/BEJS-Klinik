@@ -149,7 +149,7 @@ exports.getBookedJanjiTemuByPasien = async (req, res) => {
       skip,
       take,
       orderBy: {
-        createdAt: "desc", // <-- PENAMBAHAN INI YANG MEMBUAT SORTING JALAN
+        createdAt: "desc",
       },
     });
 
@@ -320,7 +320,7 @@ exports.getBookedJanjiTemu = async (req, res) => {
       skip,
       take,
       orderBy: {
-        createdAt: "desc", // <-- PENAMBAHAN INI YANG MEMBUAT SORTING JALAN
+        createdAt: "desc",
       },
     });
 
