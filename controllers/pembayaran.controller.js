@@ -83,7 +83,7 @@ exports.buatTransaksi = async (req, res) => {
       data: {
         id_konsultasi: id_chat, // Menggunakan id_chat sebagai order_id
         metode_pembayaran: "midtrans", // atau dari request jika bervariasi
-        jumlah: 150000, // atau dari data konsultasi jika bervariasi
+        jumlah: 50000, // atau dari data konsultasi jika bervariasi
         status: "initiated", // Status awal sebelum panggilan Midtrans
         id_pasien: konsultasi.id_pasien,
         // Anda bisa simpan paymentUrl di sini setelah Midtrans merespons jika perlu
