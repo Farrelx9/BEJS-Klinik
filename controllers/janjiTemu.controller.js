@@ -149,7 +149,7 @@ exports.getBookedJanjiTemuByPasien = async (req, res) => {
       skip,
       take,
       orderBy: {
-        createdAt: "desc", // <-- URUTAN TERBARU DULU
+        createdAt: "desc", // <-- tetap gunakan ini...
       },
     });
 
