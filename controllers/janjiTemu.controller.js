@@ -128,7 +128,6 @@ exports.getBookedJanjiTemuByPasien = async (req, res) => {
   const { page = 1, limit = 5 } = req.query;
 
   try {
-    // Hitung total data untuk meta
     const totalItems = await prisma.janjiTemu.count({
       where: {
         id_pasien,
@@ -140,7 +139,6 @@ exports.getBookedJanjiTemuByPasien = async (req, res) => {
 
     const { skip, take } = getPagination(page, limit);
 
-    // Ambil data dengan pagination
     const bookedAppointments = await prisma.janjiTemu.findMany({
       where: {
         id_pasien,
@@ -150,6 +148,9 @@ exports.getBookedJanjiTemuByPasien = async (req, res) => {
       },
       skip,
       take,
+      orderBy: {
+        createdAt: "desc", // <-- URUTAN TERBARU DULU
+      },
     });
 
     const meta = getPaginationMeta(totalItems, take, parseInt(page));
