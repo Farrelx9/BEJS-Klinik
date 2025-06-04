@@ -149,10 +149,10 @@ exports.getBookedJanjiTemuByPasien = async (req, res) => {
       skip,
       take,
       orderBy: {
-        createdAt: "desc", // <-- tetap gunakan ini...
+        createdAt: "desc", // <-- PENAMBAHAN INI YANG MEMBUAT SORTING JALAN
       },
     });
-    console.log("Fetched Appointments (sorted):", bookedAppointments);
+
     const meta = getPaginationMeta(totalItems, take, parseInt(page));
 
     res.json({
@@ -311,7 +311,7 @@ exports.getBookedJanjiTemu = async (req, res) => {
     // Pagination
     const { skip, take } = getPagination(page, limit);
 
-    // Ambil data dengan pagination
+    // Ambil data dengan pagination & sorting
     const bookedAppointments = await prisma.janjiTemu.findMany({
       where: whereClause,
       include: {
@@ -319,6 +319,9 @@ exports.getBookedJanjiTemu = async (req, res) => {
       },
       skip,
       take,
+      orderBy: {
+        createdAt: "desc", // <-- PENAMBAHAN INI YANG MEMBUAT SORTING JALAN
+      },
     });
 
     // Generate meta pagination
