@@ -38,7 +38,7 @@ exports.getAllJenisTindakan = async (req, res) => {
   try {
     // Validasi dan parsing parameter halaman & limit
     const pageNumber = Math.max(1, parseInt(page) || 1);
-    const limitNumber = Math.max(1, Math.min(parseInt(limit) || 10, 100));
+    const limitNumber = Math.max(1, Math.min(parseInt(limit) || 5, 100));
 
     // Buat where clause untuk pencarian
     let whereClause = {};
