@@ -33,7 +33,7 @@ exports.createJenisTindakan = async (req, res) => {
 };
 // 2. Ambil semua jenis tindakan
 exports.getAllJenisTindakan = async (req, res) => {
-  const { page = 1, limit = 5, search } = req.query;
+  const { page = 1, limit = 10, search } = req.query;
 
   try {
     // Validasi dan parsing parameter halaman & limit
@@ -57,7 +57,6 @@ exports.getAllJenisTindakan = async (req, res) => {
     // Hitung skip & take untuk pagination
     const { skip, take } = getPagination(pageNumber, limitNumber);
 
-    // Ambil data dengan pagination
     const tindakanList = await prisma.jenis_Tindakan.findMany({
       where: whereClause,
       skip,
@@ -66,6 +65,9 @@ exports.getAllJenisTindakan = async (req, res) => {
         id_tindakan: true,
         nama_tindakan: true,
         harga: true,
+      },
+      orderBy: {
+        createdAt: "desc", // <-- URUTKAN BERDASARKAN CREATED AT TERBARU
       },
     });
 
