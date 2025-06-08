@@ -33,7 +33,7 @@ exports.createJenisTindakan = async (req, res) => {
 };
 // 2. Ambil semua jenis tindakan
 exports.getAllJenisTindakan = async (req, res) => {
-  const { page = 1, limit = 5, search } = req.query;
+  const { page = 1, limit = 10, search } = req.query;
 
   try {
     // Validasi dan parsing parameter halaman & limit
@@ -70,7 +70,7 @@ exports.getAllJenisTindakan = async (req, res) => {
         createdAt: "desc", // <-- URUTKAN BERDASARKAN CREATED AT TERBARU
       },
     });
-    
+
     // Hitung metadata pagination
     const meta = getPaginationMeta(totalItems, take, pageNumber);
 
