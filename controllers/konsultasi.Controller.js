@@ -413,7 +413,7 @@ exports.getChatDetail = async (req, res) => {
   }
 };
 
-// Ambil semua chat untuk pasien tertentu
+// [11] Ambil semua chat untuk pasien tertentu
 exports.getChatListForPasien = async (req, res) => {
   const { id_pasien } = req.params;
   const { page = 1, limit = 5 } = req.query;
