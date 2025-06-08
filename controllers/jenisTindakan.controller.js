@@ -64,6 +64,7 @@ exports.getAllJenisTindakan = async (req, res) => {
       select: {
         id_tindakan: true,
         nama_tindakan: true,
+        deskripsi: true,
         harga: true,
       },
       orderBy: {
