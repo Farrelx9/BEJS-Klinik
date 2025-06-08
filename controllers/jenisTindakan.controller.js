@@ -33,12 +33,12 @@ exports.createJenisTindakan = async (req, res) => {
 };
 // 2. Ambil semua jenis tindakan
 exports.getAllJenisTindakan = async (req, res) => {
-  const { page = 1, limit = 10, search } = req.query;
+  const { page = 1, limit = 5, search } = req.query;
 
   try {
     // Validasi dan parsing parameter halaman & limit
     const pageNumber = Math.max(1, parseInt(page) || 1);
-    const limitNumber = Math.max(1, Math.min(parseInt(limit) || 10, 100));
+    const limitNumber = Math.max(1, Math.min(parseInt(limit) || 5, 100));
 
     // Buat where clause untuk pencarian
     let whereClause = {};
