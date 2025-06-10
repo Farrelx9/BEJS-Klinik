@@ -156,3 +156,46 @@ exports.deleteJenisTindakan = async (req, res) => {
     });
   }
 };
+
+// 4. Ambil semua jenis tindakan TANPA PAGINATION
+exports.getAllJenisTindakanNoPagination = async (req, res) => {
+  const { search } = req.query;
+
+  try {
+    // Buat where clause untuk pencarian
+    let whereClause = {};
+    if (search && search.trim()) {
+      whereClause.nama_tindakan = {
+        contains: search,
+        mode: "insensitive", // Case-insensitive pencarian
+      };
+    }
+
+    // Ambil semua data sesuai filter
+    const allTindakan = await prisma.jenis_Tindakan.findMany({
+      where: whereClause,
+      select: {
+        id_tindakan: true,
+        nama_tindakan: true,
+        deskripsi: true,
+        harga: true,
+      },
+      orderBy: {
+        createdAt: "desc", // Urutkan dari yang terbaru
+      },
+    });
+
+    return res.json({
+      success: true,
+      count: allTindakan.length,
+      data: allTindakan,
+    });
+  } catch (error) {
+    console.error("Error fetching all jenis tindakan:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Gagal mengambil seluruh daftar jenis tindakan",
+      error: error.message,
+    });
+  }
+};
