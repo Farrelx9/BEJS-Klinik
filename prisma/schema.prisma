@@ -46,6 +46,8 @@ model Pasien {
   rekamMedis     Rekam_Medis[]
   pembayaran     Pembayaran[]
   notifikasi     Notifikasi[]
+  review        Review[]
+  rekapPembayaran RekapPembayaran[]
 }
 
 model Otp {
@@ -158,4 +160,27 @@ model Jadwal {
   pasien      String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  id_pasien String
+  rating    Int      // misalnya skala 1-5
+  komentar  String?
+  createdAt DateTime @default(now())
+
+  pasien    Pasien   @relation(fields: [id_pasien], references: [id_pasien])
+}
+
+model RekapPembayaran {
+  id_rekap         String    @id @default(cuid())
+  tanggal          DateTime
+  total_pembayaran Int       // total pembayaran untuk pasien ini
+  jumlah_transaksi Int       // jumlah transaksi per pasien
+  tipe             String    // misal: 'per_pasien'
+  id_pasien        String
+  createdAt        DateTime  @default(now())
+
+  // Relasi ke Pasien
+  pasien           Pasien    @relation(fields: [id_pasien], references: [id_pasien])
 }

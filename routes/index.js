@@ -11,6 +11,7 @@ const jenisTindakanRouter = require("./jenisTindakan.Routes");
 const konsultasiRouter = require("./konsultasi.Routes");
 const pembayaranRoutes = require("./pembayaran.Routes");
 const jadwalRoutes = require("./jadwal.Routes");
+const rekapPembayaranRoutes = require("./rekapPembayaran.Routes");
 const errorHandler = require("../middlewares/errorHandler");
 
 router.use("/api/auth", authRouter);
@@ -22,6 +23,7 @@ router.use("/api/pasienAdmin", pasienRouter);
 router.use("/api/konsultasi", konsultasiRouter);
 router.use("/api/pembayaran", pembayaranRoutes);
 router.use("/api/jadwal", jadwalRoutes);
+router.use("/api/rekapPembayaran", rekapPembayaranRoutes);
 router.use(errorHandler);
 
 module.exports = router;
