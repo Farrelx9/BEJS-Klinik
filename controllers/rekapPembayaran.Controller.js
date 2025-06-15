@@ -2,16 +2,10 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const { getPagination, getPaginationMeta } = require("../utils/pagination");
 
-// 1. Membuat Rekap Pembayaran Baru
 async function createRekapPembayaran(req, res) {
-  const {
-    id_pasien,
-    tanggal,
-    total_pembayaran,
-    jumlah_transaksi,
-    tipe = "per_pasien",
-  } = req.body;
+  const { id_pasien, tanggal, total_pembayaran, jumlah_transaksi } = req.body;
 
+  // Validasi semua field wajib
   if (
     !id_pasien ||
     !tanggal ||
@@ -22,19 +16,38 @@ async function createRekapPembayaran(req, res) {
   }
 
   try {
+    // Pastikan pasien dengan id_pasien ini benar-benar ada (opsional tapi disarankan)
+    const pasien = await prisma.pasien.findUnique({
+      where: { id_pasien },
+    });
+
+    if (!pasien) {
+      return res.status(400).json({ error: "Pasien tidak ditemukan" });
+    }
+
+    // Buat rekap pembayaran baru
     const newRekap = await prisma.rekapPembayaran.create({
       data: {
         id_pasien,
         tanggal,
-        total_pembayaran,
-        jumlah_transaksi,
-        tipe,
+        total_pembayaran: parseInt(total_pembayaran),
+        jumlah_transaksi: parseInt(jumlah_transaksi),
       },
     });
 
     return res.status(201).json(newRekap);
   } catch (error) {
-    console.error(error);
+    console.error("Error saat membuat rekap pembayaran:", error);
+
+    // Penanganan error spesifik Prisma
+    if (error.code === "P2003") {
+      return res
+        .status(400)
+        .json({
+          error: "Relasi ke pasien gagal. ID Pasien mungkin tidak valid.",
+        });
+    }
+
     return res.status(500).json({ error: "Gagal menyimpan rekap pembayaran" });
   }
 }
