@@ -1,5 +1,6 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
+const { getPagination, getPaginationMeta } = require("../utils/pagination");
 
 // 1. Membuat Rekap Pembayaran Baru
 async function createRekapPembayaran(req, res) {
@@ -38,19 +39,48 @@ async function createRekapPembayaran(req, res) {
   }
 }
 
-// 2. Mengambil Semua Data Rekap Pembayaran
+// 2. Mengambil Semua Data Rekap Pembayaran (dengan pagination & search)
 async function getAllRekapPembayaran(req, res) {
+  const { page = 1, limit = 5, q: searchQuery = "" } = req.query;
+
   try {
+    // Build where clause untuk pencarian
+    const whereClause = {};
+    if (searchQuery) {
+      whereClause.pasien = {
+        nama: {
+          contains: searchQuery,
+          mode: "insensitive",
+        },
+      };
+    }
+
+    // Hitung total data sesuai filter
+    const totalItems = await prisma.rekapPembayaran.count({
+      where: whereClause,
+    });
+
+    // Ambil data dengan pagination
+    const { skip, take } = getPagination(page, limit);
     const rekapList = await prisma.rekapPembayaran.findMany({
+      where: whereClause,
       include: {
         pasien: true,
       },
       orderBy: {
         tanggal: "desc",
       },
+      skip,
+      take,
     });
 
-    return res.json(rekapList);
+    // Generate metadata pagination
+    const meta = getPaginationMeta(totalItems, parseInt(limit), parseInt(page));
+
+    return res.json({
+      data: rekapList,
+      meta,
+    });
   } catch (error) {
     console.error(error);
     return res
