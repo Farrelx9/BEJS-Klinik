@@ -5,7 +5,6 @@ const { getPagination, getPaginationMeta } = require("../utils/pagination");
 async function createRekapPembayaran(req, res) {
   const { id_pasien, tanggal, total_pembayaran, jumlah_transaksi } = req.body;
 
-  // Validasi input
   if (
     !id_pasien ||
     !tanggal ||
@@ -16,18 +15,18 @@ async function createRekapPembayaran(req, res) {
   }
 
   try {
-    // Validasi: Apakah pasien ada?
+    // Cek apakah pasien ada
     const pasien = await prisma.pasien.findUnique({
       where: { id_pasien },
     });
 
     if (!pasien) {
-      return res.status(400).json({ error: "ID pasien tidak ditemukan" });
+      return res.status(400).json({ error: "ID Pasien tidak ditemukan" });
     }
 
-    // Validasi format tanggal
-    const parsedDate = new Date(tanggal);
-    if (isNaN(parsedDate.getTime())) {
+    // Pastikan tanggal dalam format Date
+    const parsedTanggal = new Date(tanggal);
+    if (isNaN(parsedTanggal.getTime())) {
       return res.status(400).json({ error: "Format tanggal salah" });
     }
 
@@ -35,7 +34,7 @@ async function createRekapPembayaran(req, res) {
     const newRekap = await prisma.rekapPembayaran.create({
       data: {
         id_pasien,
-        tanggal: parsedDate,
+        tanggal: parsedTanggal,
         total_pembayaran: parseInt(total_pembayaran),
         jumlah_transaksi: parseInt(jumlah_transaksi),
       },
@@ -49,7 +48,16 @@ async function createRekapPembayaran(req, res) {
       return res
         .status(400)
         .json({
-          error: "Relasi ke pasien gagal. ID pasien mungkin tidak valid.",
+          error: "Relasi ke pasien gagal. ID Pasien mungkin tidak valid.",
+        });
+    }
+
+    if (error.code === "P2002") {
+      return res
+        .status(400)
+        .json({
+          error:
+            "ID pasien duplikat tidak diperbolehkan jika ada unique constraint",
         });
     }
 
