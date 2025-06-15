@@ -177,7 +177,6 @@ model RekapPembayaran {
   tanggal          DateTime
   total_pembayaran Int       // total pembayaran untuk pasien ini
   jumlah_transaksi Int       // jumlah transaksi per pasien
-  tipe             String    // misal: 'per_pasien'
   id_pasien        String
   createdAt        DateTime  @default(now())
 
