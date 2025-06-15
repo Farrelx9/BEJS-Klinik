@@ -35,4 +35,11 @@ router.delete(
   rekapPembayaranController.deleteRekapPembayaran
 );
 
+// route PUT untuk update
+router.put(
+  "/:id",
+  authMiddleware,
+  rekapPembayaranController.updateRekapPembayaran
+);
+
 module.exports = router;
