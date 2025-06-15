@@ -45,20 +45,16 @@ async function createRekapPembayaran(req, res) {
     console.error("Error saat membuat rekap:", error);
 
     if (error.code === "P2003") {
-      return res
-        .status(400)
-        .json({
-          error: "Relasi ke pasien gagal. ID Pasien mungkin tidak valid.",
-        });
+      return res.status(400).json({
+        error: "Relasi ke pasien gagal. ID Pasien mungkin tidak valid.",
+      });
     }
 
     if (error.code === "P2002") {
-      return res
-        .status(400)
-        .json({
-          error:
-            "ID pasien duplikat tidak diperbolehkan jika ada unique constraint",
-        });
+      return res.status(400).json({
+        error:
+          "ID pasien duplikat tidak diperbolehkan jika ada unique constraint",
+      });
     }
 
     return res.status(500).json({ error: "Gagal menyimpan rekap pembayaran" });
@@ -186,10 +182,74 @@ async function deleteRekapPembayaran(req, res) {
   }
 }
 
+// Update Rekap Pembayaran
+async function updateRekapPembayaran(req, res) {
+  const { id } = req.params;
+  const { id_pasien, tanggal, total_pembayaran, jumlah_transaksi } = req.body;
+
+  // Validasi input
+  if (
+    !id_pasien ||
+    !tanggal ||
+    total_pembayaran === undefined ||
+    jumlah_transaksi === undefined
+  ) {
+    return res.status(400).json({ error: "Semua field harus diisi" });
+  }
+
+  try {
+    // Pastikan pasien dengan id_pasien ini ada
+    const pasien = await prisma.pasien.findUnique({
+      where: { id_pasien: id_pasien },
+    });
+
+    if (!pasien) {
+      return res.status(400).json({ error: "Pasien tidak ditemukan" });
+    }
+
+    // Pastikan rekap dengan id_rekap ini ada
+    const rekap = await prisma.rekapPembayaran.findUnique({
+      where: { id_rekap: id },
+    });
+
+    if (!rekap) {
+      return res
+        .status(404)
+        .json({ error: "Rekap pembayaran tidak ditemukan" });
+    }
+
+    // Lakukan update
+    const updatedRekap = await prisma.rekapPembayaran.update({
+      where: { id_rekap: id },
+      data: {
+        id_pasien,
+        tanggal: new Date(tanggal),
+        total_pembayaran: parseInt(total_pembayaran),
+        jumlah_transaksi: parseInt(jumlah_transaksi),
+      },
+    });
+
+    return res.json(updatedRekap);
+  } catch (error) {
+    console.error("Error saat update rekap pembayaran:", error);
+
+    if (error.code === "P2025") {
+      return res
+        .status(404)
+        .json({ error: "Rekap pembayaran tidak ditemukan untuk ID tersebut." });
+    }
+
+    return res
+      .status(500)
+      .json({ error: "Gagal memperbarui rekap pembayaran" });
+  }
+}
+
 module.exports = {
   createRekapPembayaran,
   getAllRekapPembayaran,
   getRekapById,
   getRekapByPasien,
   deleteRekapPembayaran,
+  updateRekapPembayaran,
 };
