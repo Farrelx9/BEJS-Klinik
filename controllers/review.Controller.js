@@ -1,5 +1,6 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
+const { getPagination, getPaginationMeta } = require("../utils/pagination");
 
 // Controller for Review
 class ReviewController {
@@ -35,20 +36,45 @@ class ReviewController {
     }
   }
 
-  // Get all reviews
   async getAllReviews(req, res) {
     try {
-      const reviews = await prisma.review.findMany({
-        include: {
-          pasien: true, // Include pasien details
-          janjiTemu: true, // Include janji temu details
-          konsultasiChat: true, // Include konsultasi chat details
-        },
-      });
+      const { page = 1, limit = 10, search } = req.query;
 
-      return res
-        .status(200)
-        .json({ message: "All reviews fetched successfully", reviews });
+      // Build where condition for search
+      const whereCondition = {};
+      if (search) {
+        whereCondition.pasien = {
+          nama: {
+            contains: search,
+            mode: "insensitive", // case-insensitive search
+          },
+        };
+      }
+
+      // Get paginated reviews
+      const { skip, take } = getPagination(page, limit);
+
+      const [reviews, total] = await Promise.all([
+        prisma.review.findMany({
+          where: whereCondition,
+          include: {
+            pasien: true,
+            janjiTemu: true,
+            konsultasiChat: true,
+          },
+          skip,
+          take,
+        }),
+        prisma.review.count({ where: whereCondition }),
+      ]);
+
+      const meta = getPaginationMeta(total, take, parseInt(page));
+
+      return res.status(200).json({
+        message: "All reviews fetched successfully",
+        data: reviews,
+        meta,
+      });
     } catch (error) {
       console.error("Error fetching all reviews:", error);
       return res.status(500).json({ error: "Internal server error" });
@@ -98,12 +124,10 @@ class ReviewController {
       );
       const averageRating = totalRating / reviews.length;
 
-      return res
-        .status(200)
-        .json({
-          message: "Average rating fetched successfully",
-          averageRating,
-        });
+      return res.status(200).json({
+        message: "Average rating fetched successfully",
+        averageRating,
+      });
     } catch (error) {
       console.error("Error fetching average rating:", error);
       return res.status(500).json({ error: "Internal server error" });
