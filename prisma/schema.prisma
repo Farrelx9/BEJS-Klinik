@@ -165,21 +165,24 @@ model Jadwal {
 }
 
 model Review {
-  id              String      @id @default(cuid())
-  id_pasien       String
-  id_janji        String?     // Bisa null jika review dari chat atau lainnya
-  id_konsultasi   String?     // Jika review berasal dari sesi konsultasi chat
-  rating          Int         // Skala 1 - 5
-  komentar        String?
-  createdAt       DateTime    @default(now())
+  id            String      @id @default(cuid())
+  id_pasien     String
+  id_janji      String?     // Bisa null jika review dari chat
+  id_konsultasi String?     // Bisa null jika review dari janji temu
+  rating        Int         // Skala 1 - 5
+  komentar      String?
+  createdAt     DateTime    @default(now())
 
   // Relasi
-  pasien          Pasien      @relation(fields: [id_pasien], references: [id_pasien])
-  janjiTemu       JanjiTemu?  @relation(fields: [id_janji], references: [id_janji])
-  konsultasiChat  Konsultasi_Chat? @relation(fields: [id_konsultasi], references: [id_chat])
+  pasien        Pasien      @relation(fields: [id_pasien], references: [id_pasien])
+  janjiTemu     JanjiTemu?  @relation(fields: [id_janji], references: [id_janji])
+  konsultasiChat Konsultasi_Chat? @relation(fields: [id_konsultasi], references: [id_chat])
 
-  // Validasi: Rating harus antara 1–5
-  @@index([id_pasien, id_janji]) // Untuk cegah duplikasi review per janji temu
+  // Validasi
+  @@index([id_pasien, id_janji]) // Cegah duplikasi review per janji temu
+
+  @@unique([id_pasien, id_janji], name: "Review_per_janji_unik")
+  @@unique([id_pasien, id_konsultasi], name: "Review_per_chat_unik")
 }
 
 model RekapPembayaran {
