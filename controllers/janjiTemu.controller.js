@@ -354,19 +354,26 @@ exports.getBookedJanjiTemu = async (req, res) => {
     // Generate meta pagination
     const meta = getPaginationMeta(totalItems, take, parseInt(page));
 
-    return res.json({
+    // Format data untuk response
+    const formattedData = bookedAppointments.map((app) => ({
+      id_janji: app.id_janji,
+      id_pasien: app.id_pasien,
+      nama_pasien: app.pasien?.nama || "-",
+      noTelp_pasien: app.pasien?.noTelp || "-",
+      tanggal_waktu: app.tanggal_waktu
+        ? new Date(app.tanggal_waktu).toISOString().split("T")[0]
+        : "-",
+      waktu_janji: app.tanggal_waktu
+        ? new Date(app.tanggal_waktu).toLocaleTimeString("id-ID")
+        : "-",
+      keluhan: app.keluhan || "-",
+      status: app.status || "-",
+      createdAt: app.createdAt ? new Date(app.createdAt).toISOString() : "-",
+    }));
+
+    return res.status(200).json({
       success: true,
-      data: bookedAppointments.map((app) => ({
-        id_janji: app.id_janji,
-        id_pasien: app.id_pasien,
-        nama_pasien: app.pasien?.nama || "-",
-        noTelp_pasien: app.pasien?.noTelp || "-",
-        tanggal_waktu: new Date(app.tanggal_waktu).toISOString().split("T")[0],
-        waktu_janji: new Date(app.tanggal_waktu).toLocaleTimeString("id-ID"),
-        keluhan: app.keluhan || "-",
-        status: app.status || "-",
-        createdAt: app.createdAt,
-      })),
+      data: formattedData,
       meta: {
         totalItems: meta.totalItems,
         currentPage: meta.page,
