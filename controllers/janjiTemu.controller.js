@@ -128,11 +128,25 @@ exports.getBookedJanjiTemuByPasien = async (req, res) => {
   const { page = 1, limit = 5 } = req.query;
 
   try {
+    // Update status janji temu yang sudah lewat menjadi 'selesai'
+    await prisma.janjiTemu.updateMany({
+      where: {
+        id_pasien,
+        status: "confirmed",
+        tanggal_waktu: {
+          lt: new Date(), // Tanggal janji temu sudah lewat dari hari ini
+        },
+      },
+      data: {
+        status: "selesai",
+      },
+    });
+
     const totalItems = await prisma.janjiTemu.count({
       where: {
         id_pasien,
         status: {
-          in: ["pending", "confirmed", "cancelled"],
+          in: ["pending", "confirmed", "cancelled", "selesai"],
         },
       },
     });
@@ -143,7 +157,7 @@ exports.getBookedJanjiTemuByPasien = async (req, res) => {
       where: {
         id_pasien,
         status: {
-          in: ["pending", "confirmed", "cancelled"],
+          in: ["pending", "confirmed", "cancelled", "selesai"],
         },
       },
       skip,
@@ -261,6 +275,19 @@ exports.getBookedJanjiTemu = async (req, res) => {
   const { page = 1, limit = 5, statusFilter, search } = req.query;
 
   try {
+    // Update status janji temu yang sudah lewat menjadi 'selesai'
+    await prisma.janjiTemu.updateMany({
+      where: {
+        status: "confirmed",
+        tanggal_waktu: {
+          lt: new Date(), // Tanggal janji temu sudah lewat dari hari ini
+        },
+      },
+      data: {
+        status: "selesai",
+      },
+    });
+
     // Buat where clause dinamis
     let whereClause = {
       id_pasien: { not: null }, // hanya janji yang dipesan pasien
@@ -270,13 +297,13 @@ exports.getBookedJanjiTemu = async (req, res) => {
     // Filter berdasarkan status
     if (
       statusFilter &&
-      ["pending", "confirmed", "cancelled"].includes(statusFilter)
+      ["pending", "confirmed", "cancelled", "selesai"].includes(statusFilter)
     ) {
       whereClause.AND.push({ status: statusFilter });
     } else {
       whereClause.AND.push({
         status: {
-          in: ["pending", "confirmed", "cancelled"],
+          in: ["pending", "confirmed", "cancelled", "selesai"],
         },
       });
     }
@@ -332,13 +359,10 @@ exports.getBookedJanjiTemu = async (req, res) => {
       data: bookedAppointments.map((app) => ({
         id_janji: app.id_janji,
         id_pasien: app.id_pasien,
-
         nama_pasien: app.pasien?.nama || "-",
         noTelp_pasien: app.pasien?.noTelp || "-",
-
         tanggal_waktu: new Date(app.tanggal_waktu).toISOString().split("T")[0],
         waktu_janji: new Date(app.tanggal_waktu).toLocaleTimeString("id-ID"),
-
         keluhan: app.keluhan || "-",
         status: app.status || "-",
         createdAt: app.createdAt,
