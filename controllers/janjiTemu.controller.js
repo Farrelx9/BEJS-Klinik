@@ -172,22 +172,31 @@ exports.getBookedJanjiTemuByPasien = async (req, res) => {
 
     const meta = getPaginationMeta(totalItems, take, parseInt(page));
 
-    // Format data dengan lebih sederhana
-    const formattedData = bookedAppointments.map((app) => ({
-      id_janji: app.id_janji || "",
-      id_pasien: app.id_pasien || "",
-      nama_pasien: app.pasien?.nama || "",
-      noTelp_pasien: app.pasien?.noTelp || "",
-      tanggal_waktu: app.tanggal_waktu
-        ? new Date(app.tanggal_waktu).toISOString().split("T")[0]
-        : "",
-      waktu_janji: app.tanggal_waktu
-        ? new Date(app.tanggal_waktu).toLocaleTimeString("id-ID")
-        : "",
-      keluhan: app.keluhan || "",
-      status: app.status || "",
-      createdAt: app.createdAt ? new Date(app.createdAt).toISOString() : "",
-    }));
+    const formattedData = bookedAppointments.map((app) => {
+      const fullDate = app.tanggal_waktu ? new Date(app.tanggal_waktu) : null;
+
+      return {
+        id_janji: app.id_janji || "",
+        id_pasien: app.id_pasien || "",
+        nama_pasien: app.pasien?.nama || "",
+        noTelp_pasien: app.pasien?.noTelp || "",
+
+        // Format tanggal dalam format YYYY-MM-DD
+        tanggal_waktu: fullDate ? fullDate.toISOString().split("T")[0] : "",
+
+        // Format waktu dalam format HH:mm WIB
+        waktu_janji: fullDate
+          ? fullDate.toLocaleTimeString("id-ID", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "",
+
+        keluhan: app.keluhan || "",
+        status: app.status || "",
+        createdAt: app.createdAt ? new Date(app.createdAt).toISOString() : "",
+      };
+    });
 
     // Response yang lebih sederhana
     return res.status(200).json({
@@ -443,13 +452,11 @@ exports.updatePayment = async (req, res) => {
       !janjiTemu ||
       (janjiTemu.status !== "confirmed" && janjiTemu.status !== "selesai")
     ) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message:
-            "Pembayaran hanya bisa diupdate untuk janji temu yang sudah dikonfirmasi atau selesai.",
-        });
+      return res.status(400).json({
+        success: false,
+        message:
+          "Pembayaran hanya bisa diupdate untuk janji temu yang sudah dikonfirmasi atau selesai.",
+      });
     }
 
     const updated = await prisma.janjiTemu.update({
