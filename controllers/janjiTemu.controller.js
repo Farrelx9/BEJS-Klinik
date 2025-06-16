@@ -439,10 +439,17 @@ exports.updatePayment = async (req, res) => {
       where: { id_janji: id },
     });
 
-    if (!janjiTemu || janjiTemu.status !== "selesai") {
+    if (
+      !janjiTemu ||
+      (janjiTemu.status !== "confirmed" && janjiTemu.status !== "selesai")
+    ) {
       return res
         .status(400)
-        .json({ success: false, message: "Janji temu belum dikonfirmasi" });
+        .json({
+          success: false,
+          message:
+            "Pembayaran hanya bisa diupdate untuk janji temu yang sudah dikonfirmasi atau selesai.",
+        });
     }
 
     const updated = await prisma.janjiTemu.update({
