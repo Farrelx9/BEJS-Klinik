@@ -134,16 +134,13 @@ exports.getBookedJanjiTemuByPasien = async (req, res) => {
         id_pasien,
         status: "confirmed",
         tanggal_waktu: {
-          lt: new Date(), // Tanggal janji temu sudah lewat dari hari ini
+          lt: new Date(),
         },
       },
       data: {
         status: "selesai",
       },
     });
-
-    // Log untuk debugging
-    console.log("ID Pasien:", id_pasien);
 
     const totalItems = await prisma.janjiTemu.count({
       where: {
@@ -153,9 +150,6 @@ exports.getBookedJanjiTemuByPasien = async (req, res) => {
         },
       },
     });
-
-    // Log untuk debugging
-    console.log("Total Items:", totalItems);
 
     const { skip, take } = getPagination(page, limit);
 
@@ -176,45 +170,41 @@ exports.getBookedJanjiTemuByPasien = async (req, res) => {
       },
     });
 
-    // Log untuk debugging
-    console.log("Booked Appointments:", bookedAppointments.length);
-
     const meta = getPaginationMeta(totalItems, take, parseInt(page));
 
-    // Format data untuk response
+    // Format data dengan lebih sederhana
     const formattedData = bookedAppointments.map((app) => ({
-      id_janji: app.id_janji,
-      id_pasien: app.id_pasien,
-      nama_pasien: app.pasien?.nama || "-",
-      noTelp_pasien: app.pasien?.noTelp || "-",
+      id_janji: app.id_janji || "",
+      id_pasien: app.id_pasien || "",
+      nama_pasien: app.pasien?.nama || "",
+      noTelp_pasien: app.pasien?.noTelp || "",
       tanggal_waktu: app.tanggal_waktu
         ? new Date(app.tanggal_waktu).toISOString().split("T")[0]
-        : "-",
+        : "",
       waktu_janji: app.tanggal_waktu
         ? new Date(app.tanggal_waktu).toLocaleTimeString("id-ID")
-        : "-",
-      keluhan: app.keluhan || "-",
-      status: app.status || "-",
-      createdAt: app.createdAt ? new Date(app.createdAt).toISOString() : "-",
+        : "",
+      keluhan: app.keluhan || "",
+      status: app.status || "",
+      createdAt: app.createdAt ? new Date(app.createdAt).toISOString() : "",
     }));
 
-    res.status(200).json({
+    // Response yang lebih sederhana
+    return res.status(200).json({
       success: true,
       data: formattedData,
       meta: {
-        totalItems: meta.totalItems,
-        currentPage: meta.page,
-        totalPages: meta.totalPages,
-        hasNextPage: meta.hasNextPage,
-        hasPrevPage: meta.hasPrevPage,
+        totalItems,
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(totalItems / take),
+        hasNextPage: skip + take < totalItems,
+        hasPrevPage: page > 1,
       },
     });
   } catch (error) {
-    console.error("Error in getBookedJanjiTemuByPasien:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Gagal mengambil booking",
-      error: error.message,
+      message: "Gagal mengambil data janji temu",
     });
   }
 };
@@ -449,7 +439,7 @@ exports.updatePayment = async (req, res) => {
       where: { id_janji: id },
     });
 
-    if (!janjiTemu || janjiTemu.status !== "confirmed") {
+    if (!janjiTemu || janjiTemu.status !== "selesai") {
       return res
         .status(400)
         .json({ success: false, message: "Janji temu belum dikonfirmasi" });
