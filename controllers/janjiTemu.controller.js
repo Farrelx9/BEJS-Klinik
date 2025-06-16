@@ -162,6 +162,7 @@ exports.getBookedJanjiTemuByPasien = async (req, res) => {
       },
       include: {
         pasien: true,
+        review: true,
       },
       skip,
       take,
@@ -195,6 +196,8 @@ exports.getBookedJanjiTemuByPasien = async (req, res) => {
         keluhan: app.keluhan || "",
         status: app.status || "",
         createdAt: app.createdAt ? new Date(app.createdAt).toISOString() : "",
+        // Tambahkan data review
+        review: app.review || [], // Bisa berupa array atau kosong
       };
     });
 
