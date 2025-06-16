@@ -439,7 +439,7 @@ exports.updatePayment = async (req, res) => {
       where: { id_janji: id },
     });
 
-    if (!janjiTemu || janjiTemu.status !== "confirmed") {
+    if (!janjiTemu || janjiTemu.status !== "selesai") {
       return res
         .status(400)
         .json({ success: false, message: "Janji temu belum dikonfirmasi" });
