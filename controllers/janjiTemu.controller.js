@@ -290,7 +290,7 @@ exports.getBookedJanjiTemu = async (req, res) => {
 
     // Buat where clause dinamis
     let whereClause = {
-      id_pasien: { not: null }, // hanya janji yang dipesan pasien
+      // Hapus filter id_pasien not null karena mungkin ada data yang belum diisi
       AND: [],
     };
 
@@ -370,6 +370,11 @@ exports.getBookedJanjiTemu = async (req, res) => {
       status: app.status || "-",
       createdAt: app.createdAt ? new Date(app.createdAt).toISOString() : "-",
     }));
+
+    // Log untuk debugging
+    console.log("Where Clause:", whereClause);
+    console.log("Total Items:", totalItems);
+    console.log("Booked Appointments:", bookedAppointments.length);
 
     return res.status(200).json({
       success: true,
