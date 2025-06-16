@@ -142,6 +142,9 @@ exports.getBookedJanjiTemuByPasien = async (req, res) => {
       },
     });
 
+    // Log untuk debugging
+    console.log("ID Pasien:", id_pasien);
+
     const totalItems = await prisma.janjiTemu.count({
       where: {
         id_pasien,
@@ -150,6 +153,9 @@ exports.getBookedJanjiTemuByPasien = async (req, res) => {
         },
       },
     });
+
+    // Log untuk debugging
+    console.log("Total Items:", totalItems);
 
     const { skip, take } = getPagination(page, limit);
 
@@ -160,6 +166,9 @@ exports.getBookedJanjiTemuByPasien = async (req, res) => {
           in: ["pending", "confirmed", "cancelled", "selesai"],
         },
       },
+      include: {
+        pasien: true,
+      },
       skip,
       take,
       orderBy: {
@@ -167,18 +176,46 @@ exports.getBookedJanjiTemuByPasien = async (req, res) => {
       },
     });
 
+    // Log untuk debugging
+    console.log("Booked Appointments:", bookedAppointments.length);
+
     const meta = getPaginationMeta(totalItems, take, parseInt(page));
 
-    res.json({
+    // Format data untuk response
+    const formattedData = bookedAppointments.map((app) => ({
+      id_janji: app.id_janji,
+      id_pasien: app.id_pasien,
+      nama_pasien: app.pasien?.nama || "-",
+      noTelp_pasien: app.pasien?.noTelp || "-",
+      tanggal_waktu: app.tanggal_waktu
+        ? new Date(app.tanggal_waktu).toISOString().split("T")[0]
+        : "-",
+      waktu_janji: app.tanggal_waktu
+        ? new Date(app.tanggal_waktu).toLocaleTimeString("id-ID")
+        : "-",
+      keluhan: app.keluhan || "-",
+      status: app.status || "-",
+      createdAt: app.createdAt ? new Date(app.createdAt).toISOString() : "-",
+    }));
+
+    res.status(200).json({
       success: true,
-      data: bookedAppointments,
-      meta,
+      data: formattedData,
+      meta: {
+        totalItems: meta.totalItems,
+        currentPage: meta.page,
+        totalPages: meta.totalPages,
+        hasNextPage: meta.hasNextPage,
+        hasPrevPage: meta.hasPrevPage,
+      },
     });
   } catch (error) {
-    console.error(error);
-    res
-      .status(500)
-      .json({ success: false, message: "Gagal mengambil booking" });
+    console.error("Error in getBookedJanjiTemuByPasien:", error);
+    res.status(500).json({
+      success: false,
+      message: "Gagal mengambil booking",
+      error: error.message,
+    });
   }
 };
 
@@ -290,7 +327,7 @@ exports.getBookedJanjiTemu = async (req, res) => {
 
     // Buat where clause dinamis
     let whereClause = {
-      id_pasien: { not: null }, // hanya janji yang dipesan pasien
+      // Hapus filter id_pasien not null karena mungkin ada data yang belum diisi
       AND: [],
     };
 
@@ -354,19 +391,31 @@ exports.getBookedJanjiTemu = async (req, res) => {
     // Generate meta pagination
     const meta = getPaginationMeta(totalItems, take, parseInt(page));
 
-    return res.json({
+    // Format data untuk response
+    const formattedData = bookedAppointments.map((app) => ({
+      id_janji: app.id_janji,
+      id_pasien: app.id_pasien,
+      nama_pasien: app.pasien?.nama || "-",
+      noTelp_pasien: app.pasien?.noTelp || "-",
+      tanggal_waktu: app.tanggal_waktu
+        ? new Date(app.tanggal_waktu).toISOString().split("T")[0]
+        : "-",
+      waktu_janji: app.tanggal_waktu
+        ? new Date(app.tanggal_waktu).toLocaleTimeString("id-ID")
+        : "-",
+      keluhan: app.keluhan || "-",
+      status: app.status || "-",
+      createdAt: app.createdAt ? new Date(app.createdAt).toISOString() : "-",
+    }));
+
+    // Log untuk debugging
+    console.log("Where Clause:", whereClause);
+    console.log("Total Items:", totalItems);
+    console.log("Booked Appointments:", bookedAppointments.length);
+
+    return res.status(200).json({
       success: true,
-      data: bookedAppointments.map((app) => ({
-        id_janji: app.id_janji,
-        id_pasien: app.id_pasien,
-        nama_pasien: app.pasien?.nama || "-",
-        noTelp_pasien: app.pasien?.noTelp || "-",
-        tanggal_waktu: new Date(app.tanggal_waktu).toISOString().split("T")[0],
-        waktu_janji: new Date(app.tanggal_waktu).toLocaleTimeString("id-ID"),
-        keluhan: app.keluhan || "-",
-        status: app.status || "-",
-        createdAt: app.createdAt,
-      })),
+      data: formattedData,
       meta: {
         totalItems: meta.totalItems,
         currentPage: meta.page,
