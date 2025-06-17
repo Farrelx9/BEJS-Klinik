@@ -548,32 +548,50 @@ exports.getUnreadMessagesByIdChat = async (req, res) => {
   }
 };
 
-// Mark all unread messages as read for a chat (by admin/dokter)
-exports.markAllMessagesAsReadByAdmin = async (req, res) => {
+// Mark all unread messages as read for a chat
+exports.markAllMessagesAsRead = async (req, res) => {
   const { id_chat } = req.params;
   const user = req.user;
 
-  if (user.role !== "admin") {
-    return res.status(403).json({ success: false, message: "Akses ditolak" });
-  }
-
   try {
-    await prisma.pesan_Chat.updateMany({
-      where: {
-        id_chat,
-        pengirim: "pasien",
-        is_read: false,
-      },
-      data: { is_read: true },
-    });
+    // Bedakan logika berdasarkan role user
+    if (user.role === "dokter") {
+      // Dokter menandai pesan dari pasien sebagai dibaca
+      await prisma.pesan_Chat.updateMany({
+        where: {
+          id_chat,
+          pengirim: "pasien",
+          is_read: false,
+        },
+        data: { is_read: true },
+      });
+    } else if (user.role === "pasien") {
+      // Pasien menandai pesan dari dokter sebagai dibaca
+      await prisma.pesan_Chat.updateMany({
+        where: {
+          id_chat,
+          pengirim: "dokter",
+          is_read: false,
+        },
+        data: { is_read: true },
+      });
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: "Akses ditolak. Hanya dokter dan pasien yang diizinkan.",
+      });
+    }
 
     return res.json({
       success: true,
       message: "Semua pesan ditandai sudah dibaca",
     });
   } catch (error) {
-    return res
-      .status(500)
-      .json({ success: false, message: "Gagal update pesan" });
+    console.error("Gagal update status pesan:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Gagal update status pesan",
+      error: error.message,
+    });
   }
 };
