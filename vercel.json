@@ -2,5 +2,16 @@
   "version": 2,
   "name": "PKL_PROJECT",
   "builds": [{ "src": "app.js", "use": "@vercel/node" }],
-  "routes": [{ "src": "/(.*)", "dest": "/app.js" }]
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/app.js",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Allow-Credentials": "true"
+      }
+    }
+  ]
 }
