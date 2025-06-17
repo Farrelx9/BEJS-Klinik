@@ -68,8 +68,9 @@ router.get(
   konsultasi.getUnreadMessagesByIdChat
 );
 
+// [TAMBAHAN] Tandai semua pesan sebagai dibaca
 router.patch(
   "/:id_chat/mark-read",
   authMidlleware,
-  konsultasi.markAllMessagesAsReadByAdmin
+  konsultasi.markAllMessagesAsRead
 );
