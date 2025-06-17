@@ -392,12 +392,12 @@ exports.getChatDetail = async (req, res) => {
           select: {
             id_pasien: true,
             nama: true, // Ambil nama langsung dari pasien
-            review: true,
           },
         },
         messages: {
           orderBy: { waktu_kirim: "asc" },
         },
+        review: true,
       },
     });
 
