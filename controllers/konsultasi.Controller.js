@@ -547,3 +547,33 @@ exports.getUnreadMessagesByIdChat = async (req, res) => {
     });
   }
 };
+
+// Mark all unread messages as read for a chat (by admin/dokter)
+exports.markAllMessagesAsReadByAdmin = async (req, res) => {
+  const { id_chat } = req.params;
+  const user = req.user;
+
+  if (user.role !== "admin") {
+    return res.status(403).json({ success: false, message: "Akses ditolak" });
+  }
+
+  try {
+    await prisma.pesan_Chat.updateMany({
+      where: {
+        id_chat,
+        pengirim: "pasien",
+        is_read: false,
+      },
+      data: { is_read: true },
+    });
+
+    return res.json({
+      success: true,
+      message: "Semua pesan ditandai sudah dibaca",
+    });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ success: false, message: "Gagal update pesan" });
+  }
+};

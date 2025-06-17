@@ -67,3 +67,9 @@ router.get(
   authMidlleware,
   konsultasi.getUnreadMessagesByIdChat
 );
+
+router.patch(
+  "/:id_chat/mark-read",
+  authMidlleware,
+  konsultasi.markAllMessagesAsReadByAdmin
+);
