@@ -477,67 +477,59 @@ exports.getChatListForPasien = async (req, res) => {
   }
 };
 
-// 12. Ambil jumlah pesan belum dibaca untuk admin
-exports.getUnreadChatsForAdmin = async (req, res) => {
-  try {
-    const unreadMessages = await prisma.pesan_Chat.findMany({
-      where: {
-        is_read: false,
-        pengirim: "pasien", // hanya pesan dari pasien
-        konsultasi_Chat: {
-          status: { in: ["aktif", "pending"] }, // sesi aktif atau pending
-        },
-      },
-      include: {
-        konsultasi_Chat: {
-          include: {
-            pasien: true,
-          },
-        },
-      },
-    });
+// exports.getUnreadMessagesByIdChat = ...
 
-    // Hitung jumlah pesan per sesi chat
-    const grouped = unreadMessages.reduce((acc, msg) => {
-      const idChat = msg.id_chat;
-      if (!acc[idChat]) {
-        acc[idChat] = {
-          id_chat: idChat,
-          nama_pasien: msg.konsultasi_Chat.pasien.nama,
-          count: 0,
-        };
-      }
-      acc[idChat].count += 1;
-      return acc;
-    }, {});
-
-    const result = Object.values(grouped);
-    return res.json({ success: true, data: result });
-  } catch (error) {
-    console.error("Gagal ambil pesan belum dibaca:", error.message);
-    return res.status(500).json({
-      success: false,
-      message: "Gagal mengambil pesan belum dibaca",
-    });
-  }
-};
-
-// 13. Ambil jumlah pesan belum dibaca untuk pasien pada sesi aktif
-exports.getUnreadMessagesBySesi = async (req, res) => {
+exports.getUnreadMessagesByIdChat = async (req, res) => {
   const { id_chat } = req.params;
+  const user = req.user; // Harus ada dari middleware auth
 
   try {
-    const unreadCount = await prisma.pesan_Chat.count({
-      where: {
-        id_chat: parseInt(id_chat),
-        pengirim: "admin",
-        is_read: false,
-      },
+    // Cek apakah sesi chat ada
+    const chatSession = await prisma.konsultasi_Chat.findUnique({
+      where: { id_chat: parseInt(id_chat) },
     });
+
+    if (!chatSession) {
+      return res.status(404).json({
+        success: false,
+        message: "Sesi chat tidak ditemukan",
+      });
+    }
+
+    let unreadCount = 0;
+
+    // Bedakan logika berdasarkan role user
+    if (user.role === "admin") {
+      // Admin: lihat pesan dari pasien yang belum dibaca
+      unreadCount = await prisma.pesan_Chat.count({
+        where: {
+          id_chat: parseInt(id_chat),
+          pengirim: "pasien",
+          is_read: false,
+        },
+      });
+    } else if (user.role === "pasien") {
+      // Pasien: lihat pesan dari admin yang belum dibaca
+      unreadCount = await prisma.pesan_Chat.count({
+        where: {
+          id_chat: parseInt(id_chat),
+          pengirim: "admin",
+          is_read: false,
+        },
+      });
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: "Akses ditolak. Role tidak dikenal.",
+      });
+    }
 
     return res.json({
       success: true,
-      data: { id_chat, unread_count: unreadCount },
+      data: {
+        id_chat,
+        unread_count: unreadCount,
+      },
     });
   } catch (error) {
     console.error("Gagal ambil jumlah pesan belum dibaca:", error.message);
