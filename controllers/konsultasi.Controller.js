@@ -392,6 +392,7 @@ exports.getChatDetail = async (req, res) => {
           select: {
             id_pasien: true,
             nama: true, // Ambil nama langsung dari pasien
+            review: true,
           },
         },
         messages: {
