@@ -484,12 +484,16 @@ exports.getUnreadMessagesByIdChat = async (req, res) => {
   const user = req.user; // Harus ada dari middleware auth
 
   try {
+    console.log("Checking unread messages for chat:", id_chat);
+    console.log("User role:", user.role);
+
     // Cek apakah sesi chat ada
     const chatSession = await prisma.konsultasi_Chat.findUnique({
-      where: { id_chat: parseInt(id_chat) },
+      where: { id_chat: id_chat }, // Remove parseInt since id_chat is string
     });
 
     if (!chatSession) {
+      console.log("Chat session not found:", id_chat);
       return res.status(404).json({
         success: false,
         message: "Sesi chat tidak ditemukan",
@@ -503,7 +507,7 @@ exports.getUnreadMessagesByIdChat = async (req, res) => {
       // Admin: lihat pesan dari pasien yang belum dibaca
       unreadCount = await prisma.pesan_Chat.count({
         where: {
-          id_chat: parseInt(id_chat),
+          id_chat: id_chat, // Remove parseInt
           pengirim: "pasien",
           is_read: false,
         },
@@ -512,17 +516,20 @@ exports.getUnreadMessagesByIdChat = async (req, res) => {
       // Pasien: lihat pesan dari admin yang belum dibaca
       unreadCount = await prisma.pesan_Chat.count({
         where: {
-          id_chat: parseInt(id_chat),
+          id_chat: id_chat, // Remove parseInt
           pengirim: "admin",
           is_read: false,
         },
       });
     } else {
+      console.log("Invalid user role:", user.role);
       return res.status(403).json({
         success: false,
         message: "Akses ditolak. Role tidak dikenal.",
       });
     }
+
+    console.log("Unread count:", unreadCount);
 
     return res.json({
       success: true,
@@ -532,10 +539,11 @@ exports.getUnreadMessagesByIdChat = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Gagal ambil jumlah pesan belum dibaca:", error.message);
+    console.error("Gagal ambil jumlah pesan belum dibaca:", error);
     return res.status(500).json({
       success: false,
       message: "Gagal mengambil jumlah pesan belum dibaca",
+      error: error.message, // Add error message for debugging
     });
   }
 };
