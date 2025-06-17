@@ -78,6 +78,7 @@ exports.kirimPesan = async (req, res) => {
         isi,
         pengirim,
         id_chat,
+        is_read: false,
       },
     });
 
@@ -472,6 +473,77 @@ exports.getChatListForPasien = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Gagal mengambil daftar chat untuk pasien",
+    });
+  }
+};
+
+// 12. Ambil jumlah pesan belum dibaca untuk admin
+exports.getUnreadChatsForAdmin = async (req, res) => {
+  try {
+    const unreadMessages = await prisma.pesan_Chat.findMany({
+      where: {
+        is_read: false,
+        pengirim: "pasien", // hanya pesan dari pasien
+        konsultasi_Chat: {
+          status: { in: ["aktif", "pending"] }, // sesi aktif atau pending
+        },
+      },
+      include: {
+        konsultasi_Chat: {
+          include: {
+            pasien: true,
+          },
+        },
+      },
+    });
+
+    // Hitung jumlah pesan per sesi chat
+    const grouped = unreadMessages.reduce((acc, msg) => {
+      const idChat = msg.id_chat;
+      if (!acc[idChat]) {
+        acc[idChat] = {
+          id_chat: idChat,
+          nama_pasien: msg.konsultasi_Chat.pasien.nama,
+          count: 0,
+        };
+      }
+      acc[idChat].count += 1;
+      return acc;
+    }, {});
+
+    const result = Object.values(grouped);
+    return res.json({ success: true, data: result });
+  } catch (error) {
+    console.error("Gagal ambil pesan belum dibaca:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Gagal mengambil pesan belum dibaca",
+    });
+  }
+};
+
+// 13. Ambil jumlah pesan belum dibaca untuk pasien pada sesi aktif
+exports.getUnreadMessagesBySesi = async (req, res) => {
+  const { id_chat } = req.params;
+
+  try {
+    const unreadCount = await prisma.pesan_Chat.count({
+      where: {
+        id_chat: parseInt(id_chat),
+        pengirim: "admin",
+        is_read: false,
+      },
+    });
+
+    return res.json({
+      success: true,
+      data: { id_chat, unread_count: unreadCount },
+    });
+  } catch (error) {
+    console.error("Gagal ambil jumlah pesan belum dibaca:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Gagal mengambil jumlah pesan belum dibaca",
     });
   }
 };

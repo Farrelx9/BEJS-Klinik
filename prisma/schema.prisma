@@ -106,6 +106,7 @@ model Pesan_Chat {
   isi           String
   pengirim      String        // "pasien" / "dokter"
   waktu_kirim   DateTime      @default(now())
+  is_read       Boolean       @default(false)
   id_chat       String
   chat          Konsultasi_Chat @relation(fields: [id_chat], references: [id_chat])
 }
