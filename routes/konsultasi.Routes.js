@@ -61,7 +61,7 @@ router.get("/chat/admin/detail/:id_chat", konsultasi.getChatDetail);
 // 11
 router.get("/chat/pasien/:id_pasien", konsultasi.getChatListForPasien);
 
-//  [TAMBAHAN] Ambil jumlah pesan belum dibaca untuk sesi tertentu (pasien)
+//  [TAMBAHAN] Ambil jumlah pesan belum dibaca untuk sesi tertentu 
 router.get(
   "/:id_chat/unread",
   authMidlleware,
