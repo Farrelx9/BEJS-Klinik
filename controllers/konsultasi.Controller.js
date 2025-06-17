@@ -442,6 +442,7 @@ exports.getChatListForPasien = async (req, res) => {
             orderBy: { waktu_kirim: "desc" },
             take: 1,
           },
+          review: true,
         },
         skip,
         take,
