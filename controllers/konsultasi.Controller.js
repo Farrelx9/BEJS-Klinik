@@ -94,14 +94,17 @@ exports.kirimPesan = async (req, res) => {
   }
 };
 
-// 3. Ambil riwayat chat
 exports.getRiwayatChat = async (req, res) => {
   const { id_chat } = req.params;
 
   try {
+    // Fetch chat messages along with their reviews
     const riwayat = await prisma.pesan_Chat.findMany({
       where: { id_chat },
       orderBy: { waktu_kirim: "asc" },
+      include: {
+        reviews: true, // Include reviews for each message
+      },
     });
 
     return res.json({ success: true, data: riwayat });
