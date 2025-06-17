@@ -52,7 +52,7 @@ exports.kirimPesan = async (req, res) => {
   }
 
   // Validasi nilai pengirim
-  if (!["pasien", "admin"].includes(pengirim)) {
+  if (!["pasien", "dokter"].includes(pengirim)) {
     return res.status(400).json({
       success: false,
       message: "Nilai pengirim tidak valid. Harus 'pasien' atau 'admin'",
@@ -489,7 +489,7 @@ exports.getUnreadMessagesByIdChat = async (req, res) => {
 
     // Cek apakah sesi chat ada
     const chatSession = await prisma.konsultasi_Chat.findUnique({
-      where: { id_chat: id_chat }, // Remove parseInt since id_chat is string
+      where: { id_chat: id_chat },
     });
 
     if (!chatSession) {
@@ -503,21 +503,21 @@ exports.getUnreadMessagesByIdChat = async (req, res) => {
     let unreadCount = 0;
 
     // Bedakan logika berdasarkan role user
-    if (user.role === "admin") {
-      // Admin: lihat pesan dari pasien yang belum dibaca
+    if (user.role === "dokter") {
+      // Dokter: lihat pesan dari pasien yang belum dibaca
       unreadCount = await prisma.pesan_Chat.count({
         where: {
-          id_chat: id_chat, // Remove parseInt
+          id_chat: id_chat,
           pengirim: "pasien",
           is_read: false,
         },
       });
     } else if (user.role === "pasien") {
-      // Pasien: lihat pesan dari admin yang belum dibaca
+      // Pasien: lihat pesan dari dokter yang belum dibaca
       unreadCount = await prisma.pesan_Chat.count({
         where: {
-          id_chat: id_chat, // Remove parseInt
-          pengirim: "admin",
+          id_chat: id_chat,
+          pengirim: "dokter",
           is_read: false,
         },
       });
@@ -525,7 +525,7 @@ exports.getUnreadMessagesByIdChat = async (req, res) => {
       console.log("Invalid user role:", user.role);
       return res.status(403).json({
         success: false,
-        message: "Akses ditolak. Role tidak dikenal.",
+        message: "Akses ditolak. Hanya dokter dan pasien yang diizinkan.",
       });
     }
 
@@ -543,7 +543,7 @@ exports.getUnreadMessagesByIdChat = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Gagal mengambil jumlah pesan belum dibaca",
-      error: error.message, // Add error message for debugging
+      error: error.message,
     });
   }
 };
