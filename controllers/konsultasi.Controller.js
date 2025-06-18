@@ -4,6 +4,11 @@ const { getPagination, getPaginationMeta } = require("../utils/pagination");
 const {
   sendUnreadNotification,
   sendUnreadCountUpdate,
+  sendNewMessageToPatient,
+  sendNewPatientMessageToAdmin,
+  sendChatUpdateToPatient,
+  sendChatUpdateToAdmin,
+  sendUnreadCountUpdateToAdmin,
 } = require("../utils/socket");
 
 // 1. Mulai sesi chat setelah pilih jadwal
@@ -43,7 +48,7 @@ exports.mulaiSesiChat = async (req, res) => {
   }
 };
 
-// 2. Kirim pesan ke chat
+// 2. Kirim pesan ke chat - PERBAIKAN
 exports.kirimPesan = async (req, res) => {
   const { isi, pengirim, id_chat } = req.body;
 
@@ -61,6 +66,12 @@ exports.kirimPesan = async (req, res) => {
       where: { id_chat },
       include: {
         pasien: {
+          include: {
+            user: true,
+          },
+        },
+        // Tambahkan dokter jika ada relasi
+        dokter: {
           include: {
             user: true,
           },
@@ -85,24 +96,63 @@ exports.kirimPesan = async (req, res) => {
       },
     });
 
-    // Kirim notifikasi unread message ke user yang relevan
-    if (pengirim === "dokter" && chatSession.pasien?.user?.id_user) {
-      // Jika dokter kirim pesan, notifikasi ke pasien
-      sendUnreadNotification(chatSession.pasien.user.id_user, {
-        type: "new_message",
-        chatId: id_chat,
-        message: `Dokter mengirim pesan baru`,
-        timestamp: new Date(),
-      });
+    // ===== SOCKET NOTIFICATION LOGIC YANG DIPERBAIKI =====
+
+    if (pengirim === "dokter") {
+      // Jika dokter kirim pesan ke pasien
+      if (chatSession.pasien?.user?.id_user) {
+        // 1. Kirim notifikasi pesan baru ke pasien
+        sendNewMessageToPatient(chatSession.pasien.user.id_user, {
+          chatId: id_chat,
+          message: isi,
+        });
+
+        // 2. Hitung unread count untuk pasien
+        const unreadCount = await prisma.pesan_Chat.count({
+          where: {
+            id_chat,
+            pengirim: "dokter",
+            is_read: false,
+          },
+        });
+
+        // 3. Update unread count ke pasien
+        sendUnreadCountUpdate(
+          chatSession.pasien.user.id_user,
+          id_chat,
+          unreadCount
+        );
+
+        // 4. Update chat untuk dokter
+        if (chatSession.dokter?.user?.id_user) {
+          sendChatUpdateToAdmin(chatSession.dokter.user.id_user, id_chat);
+        }
+      }
     } else if (pengirim === "pasien") {
-      // Jika pasien kirim pesan, notifikasi ke admin/dokter
-      // Bisa dikirim ke semua admin atau dokter yang online
-      sendUnreadNotification("admin", {
-        type: "new_message",
-        chatId: id_chat,
-        message: `Pasien mengirim pesan baru`,
-        timestamp: new Date(),
+      // Jika pasien kirim pesan ke dokter
+
+      // 1. Hitung unread count untuk dokter
+      const unreadCount = await prisma.pesan_Chat.count({
+        where: {
+          id_chat,
+          pengirim: "pasien",
+          is_read: false,
+        },
       });
+
+      // 2. Kirim notifikasi pesan baru ke dokter (broadcast ke semua admin)
+      sendNewPatientMessageToAdmin("admin", {
+        chatId: id_chat,
+        message: isi,
+      });
+
+      // 3. Update unread count ke admin
+      sendUnreadCountUpdateToAdmin("admin", id_chat, unreadCount);
+
+      // 4. Update chat untuk pasien
+      if (chatSession.pasien?.user?.id_user) {
+        sendChatUpdateToPatient(chatSession.pasien.user.id_user, id_chat);
+      }
     }
 
     return res.json({
@@ -118,6 +168,7 @@ exports.kirimPesan = async (req, res) => {
   }
 };
 
+// 3. Ambil riwayat chat
 exports.getRiwayatChat = async (req, res) => {
   const { id_chat } = req.params;
 
@@ -195,7 +246,7 @@ exports.getSesiAktifByPasien = async (req, res) => {
   }
 };
 
-// 6. [Baru] Ambil semua jadwal chat yang tersedia dengan pagination
+// 6. Ambil semua jadwal chat yang tersedia dengan pagination
 exports.getAvailableChatSchedules = async (req, res) => {
   try {
     const { page = 1, limit = 5, tanggal } = req.query;
@@ -268,7 +319,7 @@ exports.getAvailableChatSchedules = async (req, res) => {
   }
 };
 
-// 7. [Baru] Pasien memilih jadwal chat
+// 7. Pasien memilih jadwal chat
 exports.pilihJadwal = async (req, res) => {
   const { id_jadwal, id_pasien } = req.body;
 
@@ -366,7 +417,7 @@ exports.getAllChatsForAdmin = async (req, res) => {
   }
 };
 
-// 9. [Baru] Admin mengaktifkan sesi chat
+// 9. Admin mengaktifkan sesi chat
 exports.aktifkanSesiChat = async (req, res) => {
   const { id_chat } = req.params;
 
@@ -402,7 +453,7 @@ exports.aktifkanSesiChat = async (req, res) => {
   }
 };
 
-// 10. [Baru] Ambil detail chat beserta riwayat pesan
+// 10. Ambil detail chat beserta riwayat pesan
 exports.getChatDetail = async (req, res) => {
   const { id_chat } = req.params;
 
@@ -441,7 +492,7 @@ exports.getChatDetail = async (req, res) => {
   }
 };
 
-// [11] Ambil semua chat untuk pasien tertentu
+// 11. Ambil semua chat untuk pasien tertentu
 exports.getChatListForPasien = async (req, res) => {
   const { id_pasien } = req.params;
   const { page = 1, limit = 5 } = req.query;
@@ -501,8 +552,7 @@ exports.getChatListForPasien = async (req, res) => {
   }
 };
 
-// exports.getUnreadMessagesByIdChat = ...
-
+// 12. Ambil jumlah pesan belum dibaca
 exports.getUnreadMessagesByIdChat = async (req, res) => {
   const { id_chat } = req.params;
   const user = req.user; // Harus ada dari middleware auth
@@ -572,7 +622,7 @@ exports.getUnreadMessagesByIdChat = async (req, res) => {
   }
 };
 
-// Mark all unread messages as read for a chat
+// 13. Mark all unread messages as read for a chat - PERBAIKAN
 exports.markAllMessagesAsRead = async (req, res) => {
   const { id_chat } = req.params;
   const user = req.user;
@@ -583,6 +633,11 @@ exports.markAllMessagesAsRead = async (req, res) => {
       where: { id_chat },
       include: {
         pasien: {
+          include: {
+            user: true,
+          },
+        },
+        dokter: {
           include: {
             user: true,
           },
@@ -612,9 +667,27 @@ exports.markAllMessagesAsRead = async (req, res) => {
       });
       updatedCount = result.count;
 
-      // Kirim update unread count ke pasien
+      // Hitung ulang unread count untuk dokter
+      const unreadCount = await prisma.pesan_Chat.count({
+        where: {
+          id_chat,
+          pengirim: "pasien",
+          is_read: false,
+        },
+      });
+
+      // Kirim update unread count ke dokter
+      if (chatSession.dokter?.user?.id_user) {
+        sendUnreadCountUpdateToAdmin(
+          chatSession.dokter.user.id_user,
+          id_chat,
+          unreadCount
+        );
+      }
+
+      // Update chat untuk pasien
       if (chatSession.pasien?.user?.id_user) {
-        sendUnreadCountUpdate(chatSession.pasien.user.id_user, id_chat, 0);
+        sendChatUpdateToPatient(chatSession.pasien.user.id_user, id_chat);
       }
     } else if (user.role === "pasien") {
       // Pasien menandai pesan dari dokter sebagai dibaca
@@ -628,8 +701,28 @@ exports.markAllMessagesAsRead = async (req, res) => {
       });
       updatedCount = result.count;
 
-      // Kirim update unread count ke admin/dokter
-      sendUnreadCountUpdate("admin", id_chat, 0);
+      // Hitung ulang unread count untuk pasien
+      const unreadCount = await prisma.pesan_Chat.count({
+        where: {
+          id_chat,
+          pengirim: "dokter",
+          is_read: false,
+        },
+      });
+
+      // Kirim update unread count ke pasien
+      if (chatSession.pasien?.user?.id_user) {
+        sendUnreadCountUpdate(
+          chatSession.pasien.user.id_user,
+          id_chat,
+          unreadCount
+        );
+      }
+
+      // Update chat untuk dokter
+      if (chatSession.dokter?.user?.id_user) {
+        sendChatUpdateToAdmin(chatSession.dokter.user.id_user, id_chat);
+      }
     } else {
       return res.status(403).json({
         success: false,
