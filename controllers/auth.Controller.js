@@ -114,6 +114,10 @@ exports.login = async (req, res) => {
               where: { status: "pending" },
               orderBy: { tanggal_waktu: "asc" },
             },
+            konsultasiChat: {
+              where: { status: "pending" },
+              orderBy: { waktu_mulai: "desc" },
+            },
           },
         },
       },
@@ -160,6 +164,7 @@ exports.login = async (req, res) => {
               jenis_kelamin: user.pasien.jenis_kelamin,
               profilePicture: user.pasien.profilePicture,
               janjiTemu: user.pasien.janjiTemu || [],
+              konsultasiChat: user.pasien.konsultasiChat || [],
             }
           : null,
       },
@@ -404,6 +409,10 @@ exports.getProfile = async (req, res) => {
               where: { status: "pending" },
               orderBy: { tanggal_waktu: "asc" },
             },
+            konsultasiChat: {
+              where: { status: "pending" },
+              orderBy: { waktu_mulai: "desc" },
+            },
           },
         },
       },
@@ -429,6 +438,7 @@ exports.getProfile = async (req, res) => {
             jenis_kelamin: user.pasien.jenis_kelamin || null,
             profilePicture: user.pasien.profilePicture || null,
             janjiTemu: user.pasien.janjiTemu || [],
+            konsultasiChat: user.pasien.konsultasiChat || [],
           }
         : null,
       createdAt: user.createdAt,
@@ -645,6 +655,8 @@ exports.updateProfile = async (req, res) => {
               tanggal_lahir: updatedUser.pasien.tanggal_lahir,
               jenis_kelamin: updatedUser.pasien.jenis_kelamin,
               profilePicture: updatedUser.pasien.profilePicture || null,
+              janjiTemu: updatedUser.pasien.janjiTemu || [],
+              konsultasiChat: updatedUser.pasien.konsultasiChat || [],
             }
           : null,
       },
