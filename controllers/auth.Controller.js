@@ -104,8 +104,21 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   const { email, password } = req.body;
   try {
-    // Cari user berdasarkan email
-    const user = await prisma.user.findUnique({ where: { email } });
+    // Cari user berdasarkan email dengan include pasien dan janji temu pending
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        pasien: {
+          include: {
+            janjiTemu: {
+              where: { status: "pending" },
+              orderBy: { tanggal_waktu: "asc" },
+            },
+          },
+        },
+      },
+    });
+
     if (!user) {
       return res.status(400).json({ message: "Email atau password salah" });
     }
@@ -128,7 +141,31 @@ exports.login = async (req, res) => {
       { expiresIn: "1d" }
     );
 
-    res.json({ message: "Login berhasil", token });
+    // Format response data
+    const responseData = {
+      message: "Login berhasil",
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        is_verified: user.is_verified,
+        pasien: user.pasien
+          ? {
+              id_pasien: user.pasien.id_pasien,
+              nama: user.pasien.nama,
+              noTelp: user.pasien.noTelp,
+              alamat: user.pasien.alamat,
+              tanggal_lahir: user.pasien.tanggal_lahir,
+              jenis_kelamin: user.pasien.jenis_kelamin,
+              profilePicture: user.pasien.profilePicture,
+              janjiTemu: user.pasien.janjiTemu || [],
+            }
+          : null,
+      },
+    };
+
+    res.json(responseData);
   } catch (error) {
     res
       .status(500)
@@ -360,7 +397,16 @@ exports.getProfile = async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { pasien: true },
+      include: {
+        pasien: {
+          include: {
+            janjiTemu: {
+              where: { status: "pending" },
+              orderBy: { tanggal_waktu: "asc" },
+            },
+          },
+        },
+      },
     });
 
     if (!user) {
@@ -382,6 +428,7 @@ exports.getProfile = async (req, res) => {
             tanggal_lahir: user.pasien.tanggal_lahir || null,
             jenis_kelamin: user.pasien.jenis_kelamin || null,
             profilePicture: user.pasien.profilePicture || null,
+            janjiTemu: user.pasien.janjiTemu || [],
           }
         : null,
       createdAt: user.createdAt,
