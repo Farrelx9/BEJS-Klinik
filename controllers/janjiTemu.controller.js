@@ -528,18 +528,7 @@ exports.cancelJanjiTemu = async (req, res) => {
       });
     }
 
-    // Update status menjadi cancelled
-    const updated = await prisma.janjiTemu.update({
-      where: { id_janji: id },
-      data: {
-        status: "cancelled",
-        // Reset id_pasien dan keluhan agar slot bisa digunakan lagi
-        id_pasien: null,
-        keluhan: null,
-      },
-    });
-
-    // Kirim notifikasi ke pasien
+    // Kirim notifikasi ke pasien SEBELUM update (karena setelah update id_pasien jadi null)
     let notifSuccess = true;
     try {
       const judulNotif = "Janji Temu Dibatalkan";
@@ -560,6 +549,17 @@ exports.cancelJanjiTemu = async (req, res) => {
       notifSuccess = false;
     }
 
+    // Update status menjadi cancelled
+    const updated = await prisma.janjiTemu.update({
+      where: { id_janji: id },
+      data: {
+        status: "cancelled",
+        // Reset id_pasien dan keluhan agar slot bisa digunakan lagi
+        id_pasien: null,
+        keluhan: "", // Set ke string kosong, bukan null
+      },
+    });
+
     return res.json({
       success: true,
       message: "Janji temu berhasil dibatalkan",
@@ -567,12 +567,7 @@ exports.cancelJanjiTemu = async (req, res) => {
       notificationSent: notifSuccess,
     });
   } catch (error) {
-    console.error("Error canceling appointment:", {
-      error: error.message,
-      stack: error.stack,
-      id: id,
-      body: req.body,
-    });
+    console.error("Error canceling appointment:", error.message);
     return res.status(500).json({
       success: false,
       message: "Gagal membatalkan janji temu",
