@@ -4,10 +4,12 @@ const express = require("express");
 const path = require("path");
 const logger = require("morgan");
 const cors = require("cors");
+const http = require("http");
 
 const routes = require("./routes");
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
@@ -17,6 +19,13 @@ app.use(express.urlencoded({ extended: false }));
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 app.set("views", __dirname + "/views");
+
+// Initialize Socket.IO
+const { initializeSocket } = require("./utils/socket");
+const io = initializeSocket(server);
+
+// Make io available globally for controllers
+global.io = io;
 
 // Serve static files from uploads directory
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -50,6 +59,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => console.log("Listening on port :", PORT));
+server.listen(PORT, () => console.log("Listening on port :", PORT));
 
 module.exports = app;
