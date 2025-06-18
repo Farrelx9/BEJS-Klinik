@@ -33,6 +33,7 @@
     "nodemailer": "^7.0.0",
     "nodemon": "^3.1.9",
     "punycode.js": "^2.3.1",
+    "socket.io": "^4.8.1",
     "whatwg-url": "^14.2.0"
   },
   "devDependencies": {

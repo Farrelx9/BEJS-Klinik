@@ -1,6 +1,10 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const { getPagination, getPaginationMeta } = require("../utils/pagination");
+const {
+  sendUnreadNotification,
+  sendUnreadCountUpdate,
+} = require("../utils/socket");
 
 // 1. Mulai sesi chat setelah pilih jadwal
 exports.mulaiSesiChat = async (req, res) => {
@@ -51,18 +55,17 @@ exports.kirimPesan = async (req, res) => {
     });
   }
 
-  // Validasi nilai pengirim
-  if (!["pasien", "dokter"].includes(pengirim)) {
-    return res.status(400).json({
-      success: false,
-      message: "Nilai pengirim tidak valid. Harus 'pasien' atau 'admin'",
-    });
-  }
-
   try {
     // Cek apakah sesi chat ada dan aktif
     const chatSession = await prisma.konsultasi_Chat.findUnique({
       where: { id_chat },
+      include: {
+        pasien: {
+          include: {
+            user: true,
+          },
+        },
+      },
     });
 
     if (!chatSession || chatSession.status !== "aktif") {
@@ -81,6 +84,26 @@ exports.kirimPesan = async (req, res) => {
         is_read: false,
       },
     });
+
+    // Kirim notifikasi unread message ke user yang relevan
+    if (pengirim === "dokter" && chatSession.pasien?.user?.id_user) {
+      // Jika dokter kirim pesan, notifikasi ke pasien
+      sendUnreadNotification(chatSession.pasien.user.id_user, {
+        type: "new_message",
+        chatId: id_chat,
+        message: `Dokter mengirim pesan baru`,
+        timestamp: new Date(),
+      });
+    } else if (pengirim === "pasien") {
+      // Jika pasien kirim pesan, notifikasi ke admin/dokter
+      // Bisa dikirim ke semua admin atau dokter yang online
+      sendUnreadNotification("admin", {
+        type: "new_message",
+        chatId: id_chat,
+        message: `Pasien mengirim pesan baru`,
+        timestamp: new Date(),
+      });
+    }
 
     return res.json({
       success: true,
@@ -555,10 +578,31 @@ exports.markAllMessagesAsRead = async (req, res) => {
   const user = req.user;
 
   try {
+    // Cek apakah sesi chat ada
+    const chatSession = await prisma.konsultasi_Chat.findUnique({
+      where: { id_chat },
+      include: {
+        pasien: {
+          include: {
+            user: true,
+          },
+        },
+      },
+    });
+
+    if (!chatSession) {
+      return res.status(404).json({
+        success: false,
+        message: "Sesi chat tidak ditemukan",
+      });
+    }
+
+    let updatedCount = 0;
+
     // Bedakan logika berdasarkan role user
     if (user.role === "dokter") {
       // Dokter menandai pesan dari pasien sebagai dibaca
-      await prisma.pesan_Chat.updateMany({
+      const result = await prisma.pesan_Chat.updateMany({
         where: {
           id_chat,
           pengirim: "pasien",
@@ -566,9 +610,15 @@ exports.markAllMessagesAsRead = async (req, res) => {
         },
         data: { is_read: true },
       });
+      updatedCount = result.count;
+
+      // Kirim update unread count ke pasien
+      if (chatSession.pasien?.user?.id_user) {
+        sendUnreadCountUpdate(chatSession.pasien.user.id_user, id_chat, 0);
+      }
     } else if (user.role === "pasien") {
       // Pasien menandai pesan dari dokter sebagai dibaca
-      await prisma.pesan_Chat.updateMany({
+      const result = await prisma.pesan_Chat.updateMany({
         where: {
           id_chat,
           pengirim: "dokter",
@@ -576,6 +626,10 @@ exports.markAllMessagesAsRead = async (req, res) => {
         },
         data: { is_read: true },
       });
+      updatedCount = result.count;
+
+      // Kirim update unread count ke admin/dokter
+      sendUnreadCountUpdate("admin", id_chat, 0);
     } else {
       return res.status(403).json({
         success: false,
@@ -585,7 +639,8 @@ exports.markAllMessagesAsRead = async (req, res) => {
 
     return res.json({
       success: true,
-      message: "Semua pesan ditandai sudah dibaca",
+      message: `${updatedCount} pesan ditandai sudah dibaca`,
+      data: { updatedCount },
     });
   } catch (error) {
     console.error("Gagal update status pesan:", error);
