@@ -5,6 +5,7 @@ const authMiddleware = require("../middlewares/auth");
 
 router.get("/available", authMiddleware, janjiTemu.getAvailableJanjiTemu);
 router.patch("/:id/book", authMiddleware, janjiTemu.bookJanjiTemu);
+router.patch("/:id/cancel", authMiddleware, janjiTemu.cancelJanjiTemu); // Cancel by patient
 
 //admin
 router.get("/booked", authMiddleware, janjiTemu.getBookedJanjiTemu); // Hanya yang dipesan
