@@ -476,3 +476,106 @@ exports.updatePayment = async (req, res) => {
       .json({ success: false, message: "Gagal mengupdate pembayaran" });
   }
 };
+
+// === CANCEL JANJI TEMU BY PATIENT ===
+exports.cancelJanjiTemu = async (req, res) => {
+  const { id } = req.params;
+  const { id_pasien } = req.body; // ID pasien untuk validasi
+
+  if (!id_pasien) {
+    return res.status(400).json({
+      success: false,
+      message: "ID pasien diperlukan untuk validasi",
+    });
+  }
+
+  try {
+    // Cek apakah janji temu ada dan milik pasien yang bersangkutan
+    const janjiTemu = await prisma.janjiTemu.findUnique({
+      where: { id_janji: id },
+      include: { pasien: true },
+    });
+
+    if (!janjiTemu) {
+      return res.status(404).json({
+        success: false,
+        message: "Janji temu tidak ditemukan",
+      });
+    }
+
+    // Validasi bahwa janji temu milik pasien yang bersangkutan
+    if (janjiTemu.id_pasien !== id_pasien) {
+      return res.status(403).json({
+        success: false,
+        message: "Anda tidak memiliki akses untuk membatalkan janji temu ini",
+      });
+    }
+
+    // Cek apakah status janji temu bisa dibatalkan
+    if (janjiTemu.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Hanya janji temu dengan status 'pending' yang dapat dibatalkan",
+      });
+    }
+
+    // Cek apakah janji temu sudah lewat
+    if (new Date(janjiTemu.tanggal_waktu) < new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "Tidak dapat membatalkan janji temu yang sudah lewat",
+      });
+    }
+
+    // Update status menjadi cancelled
+    const updated = await prisma.janjiTemu.update({
+      where: { id_janji: id },
+      data: {
+        status: "cancelled",
+        // Reset id_pasien dan keluhan agar slot bisa digunakan lagi
+        id_pasien: null,
+        keluhan: null,
+      },
+    });
+
+    // Kirim notifikasi ke pasien
+    let notifSuccess = true;
+    try {
+      const judulNotif = "Janji Temu Dibatalkan";
+      const pesanNotif = `Janji temu Anda pada ${new Date(
+        janjiTemu.tanggal_waktu
+      ).toLocaleString("id-ID", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZoneName: "short",
+      })} telah dibatalkan.`;
+
+      await sendNotification(id_pasien, judulNotif, pesanNotif);
+    } catch (notifError) {
+      console.error("Gagal kirim notifikasi:", notifError.message);
+      notifSuccess = false;
+    }
+
+    return res.json({
+      success: true,
+      message: "Janji temu berhasil dibatalkan",
+      data: updated,
+      notificationSent: notifSuccess,
+    });
+  } catch (error) {
+    console.error("Error canceling appointment:", {
+      error: error.message,
+      stack: error.stack,
+      id: id,
+      body: req.body,
+    });
+    return res.status(500).json({
+      success: false,
+      message: "Gagal membatalkan janji temu",
+    });
+  }
+};
