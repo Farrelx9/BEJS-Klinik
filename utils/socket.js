@@ -23,18 +23,18 @@ const initializeSocket = (server) => {
   io.on("connection", (socket) => {
     console.log(`User connected: ${socket.id}`);
 
-    // ===== PATIENT SIDE EVENTS =====
-
     // Join user's notification room (based on user ID)
     socket.on("join-notifications", (userId) => {
       socket.join(`user-${userId}`);
       console.log(`User ${socket.id} joined notification room: user-${userId}`);
     });
 
-    // Join patient chat room
-    socket.on("join-chat-room", (userId) => {
-      socket.join(`patient-${userId}`);
-      console.log(`Patient ${socket.id} joined chat room: patient-${userId}`);
+    // Join admin notification room (for dokter/admin)
+    socket.on("join-admin-notifications", (userId) => {
+      socket.join(`admin-${userId}`);
+      console.log(
+        `Admin ${socket.id} joined admin notification room: admin-${userId}`
+      );
     });
 
     // Leave notification room
@@ -43,43 +43,13 @@ const initializeSocket = (server) => {
       console.log(`User ${socket.id} left notification room: user-${userId}`);
     });
 
-    // Leave patient chat room
-    socket.on("leave-chat-room", (userId) => {
-      socket.leave(`patient-${userId}`);
-      console.log(`Patient ${socket.id} left chat room: patient-${userId}`);
-    });
-
-    // ===== ADMIN SIDE EVENTS =====
-
-    // Join admin notification room
-    socket.on("join-admin-notifications", (userId) => {
-      socket.join(`admin-notifications-${userId}`);
-      console.log(
-        `Admin ${socket.id} joined admin notification room: admin-notifications-${userId}`
-      );
-    });
-
-    // Join admin chat room
-    socket.on("join-admin-chat-room", (userId) => {
-      socket.join(`admin-${userId}`);
-      console.log(`Admin ${socket.id} joined admin chat room: admin-${userId}`);
-    });
-
     // Leave admin notification room
     socket.on("leave-admin-notifications", (userId) => {
-      socket.leave(`admin-notifications-${userId}`);
+      socket.leave(`admin-${userId}`);
       console.log(
-        `Admin ${socket.id} left admin notification room: admin-notifications-${userId}`
+        `Admin ${socket.id} left admin notification room: admin-${userId}`
       );
     });
-
-    // Leave admin chat room
-    socket.on("leave-admin-chat-room", (userId) => {
-      socket.leave(`admin-${userId}`);
-      console.log(`Admin ${socket.id} left admin chat room: admin-${userId}`);
-    });
-
-    // ===== DEBUG EVENTS =====
 
     // Debug: Get socket info
     socket.on("debug-socket-info", () => {
@@ -129,64 +99,67 @@ const sendUnreadCountUpdate = (userId, chatId, unreadCount) => {
 };
 
 // Function to send new message notification to patient (from doctor)
-const sendNewMessageToPatient = (patientId, data) => {
+const sendNewMessageToPatient = (userId, data) => {
   if (io) {
-    io.to(`patient-${patientId}`).emit("new-message", {
+    io.to(`user-${userId}`).emit("new-message", {
       chatId: data.chatId,
       message: data.message,
       sender: "dokter",
       timestamp: new Date(),
     });
-    console.log(`Sent new message to patient-${patientId}:`, data);
+    console.log(`Sent new message to user-${userId}:`, data);
   }
 };
 
 // Function to send chat update to patient
-const sendChatUpdateToPatient = (patientId, chatId) => {
+const sendChatUpdateToPatient = (userId, chatId) => {
   if (io) {
-    io.to(`patient-${patientId}`).emit("chat-updated", {
+    io.to(`user-${userId}`).emit("chat-updated", {
       chatId,
       timestamp: new Date(),
     });
-    console.log(`Sent chat update to patient-${patientId}:`, { chatId });
+    console.log(`Sent chat update to user-${userId}:`, { chatId });
   }
 };
 
 // ===== ADMIN SIDE FUNCTIONS =====
 
-// Function to send new patient message notification to admin
-const sendNewPatientMessageToAdmin = (adminId, data) => {
+// Function to send new patient message to admin/dokter
+const sendNewPatientMessageToAdmin = (role, data) => {
   if (io) {
-    io.to(`admin-${adminId}`).emit("new-patient-message", {
+    // Broadcast ke semua admin/dokter yang online
+    io.emit("new-patient-message", {
       chatId: data.chatId,
       message: data.message,
       sender: "pasien",
       timestamp: new Date(),
     });
-    console.log(`Sent new patient message to admin-${adminId}:`, data);
+    console.log(`Sent new patient message to all admins:`, data);
   }
 };
 
-// Function to send chat update to admin
-const sendChatUpdateToAdmin = (adminId, chatId) => {
+// Function to send chat update to admin/dokter
+const sendChatUpdateToAdmin = (role, chatId) => {
   if (io) {
-    io.to(`admin-${adminId}`).emit("chat-updated-admin", {
+    // Broadcast ke semua admin/dokter yang online
+    io.emit("chat-updated-admin", {
       chatId,
       timestamp: new Date(),
     });
-    console.log(`Sent chat update to admin-${adminId}:`, { chatId });
+    console.log(`Sent chat update to all admins:`, { chatId });
   }
 };
 
-// Function to send unread count update to admin
-const sendUnreadCountUpdateToAdmin = (adminId, chatId, unreadCount) => {
+// Function to send unread count update to admin/dokter
+const sendUnreadCountUpdateToAdmin = (role, chatId, unreadCount) => {
   if (io) {
-    io.to(`admin-${adminId}`).emit("unread-count-update", {
+    // Broadcast ke semua admin/dokter yang online
+    io.emit("unread-count-update-admin", {
       chatId,
       unreadCount,
       timestamp: new Date(),
     });
-    console.log(`Sent unread count update to admin-${adminId}:`, {
+    console.log(`Sent unread count update to all admins:`, {
       chatId,
       unreadCount,
     });

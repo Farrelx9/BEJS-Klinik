@@ -70,12 +70,6 @@ exports.kirimPesan = async (req, res) => {
             user: true,
           },
         },
-        // Tambahkan dokter jika ada relasi
-        dokter: {
-          include: {
-            user: true,
-          },
-        },
       },
     });
 
@@ -100,9 +94,9 @@ exports.kirimPesan = async (req, res) => {
 
     if (pengirim === "dokter") {
       // Jika dokter kirim pesan ke pasien
-      if (chatSession.pasien?.user?.id_user) {
+      if (chatSession.pasien?.user?.id) {
         // 1. Kirim notifikasi pesan baru ke pasien
-        sendNewMessageToPatient(chatSession.pasien.user.id_user, {
+        sendNewMessageToPatient(chatSession.pasien.user.id, {
           chatId: id_chat,
           message: isi,
         });
@@ -117,16 +111,10 @@ exports.kirimPesan = async (req, res) => {
         });
 
         // 3. Update unread count ke pasien
-        sendUnreadCountUpdate(
-          chatSession.pasien.user.id_user,
-          id_chat,
-          unreadCount
-        );
+        sendUnreadCountUpdate(chatSession.pasien.user.id, id_chat, unreadCount);
 
-        // 4. Update chat untuk dokter
-        if (chatSession.dokter?.user?.id_user) {
-          sendChatUpdateToAdmin(chatSession.dokter.user.id_user, id_chat);
-        }
+        // 4. Update chat untuk dokter (broadcast ke semua user dengan role dokter)
+        sendChatUpdateToAdmin("dokter", id_chat);
       }
     } else if (pengirim === "pasien") {
       // Jika pasien kirim pesan ke dokter
@@ -140,18 +128,18 @@ exports.kirimPesan = async (req, res) => {
         },
       });
 
-      // 2. Kirim notifikasi pesan baru ke dokter (broadcast ke semua admin)
-      sendNewPatientMessageToAdmin("admin", {
+      // 2. Kirim notifikasi pesan baru ke dokter (broadcast ke semua user dengan role dokter)
+      sendNewPatientMessageToAdmin("dokter", {
         chatId: id_chat,
         message: isi,
       });
 
-      // 3. Update unread count ke admin
-      sendUnreadCountUpdateToAdmin("admin", id_chat, unreadCount);
+      // 3. Update unread count ke dokter
+      sendUnreadCountUpdateToAdmin("dokter", id_chat, unreadCount);
 
       // 4. Update chat untuk pasien
-      if (chatSession.pasien?.user?.id_user) {
-        sendChatUpdateToPatient(chatSession.pasien.user.id_user, id_chat);
+      if (chatSession.pasien?.user?.id) {
+        sendChatUpdateToPatient(chatSession.pasien.user.id, id_chat);
       }
     }
 
@@ -581,7 +569,7 @@ exports.getUnreadMessagesByIdChat = async (req, res) => {
       // Dokter: lihat pesan dari pasien yang belum dibaca
       unreadCount = await prisma.pesan_Chat.count({
         where: {
-          id_chat: id_chat,
+          id_chat,
           pengirim: "pasien",
           is_read: false,
         },
@@ -590,7 +578,7 @@ exports.getUnreadMessagesByIdChat = async (req, res) => {
       // Pasien: lihat pesan dari dokter yang belum dibaca
       unreadCount = await prisma.pesan_Chat.count({
         where: {
-          id_chat: id_chat,
+          id_chat,
           pengirim: "dokter",
           is_read: false,
         },
@@ -637,11 +625,6 @@ exports.markAllMessagesAsRead = async (req, res) => {
             user: true,
           },
         },
-        dokter: {
-          include: {
-            user: true,
-          },
-        },
       },
     });
 
@@ -676,18 +659,12 @@ exports.markAllMessagesAsRead = async (req, res) => {
         },
       });
 
-      // Kirim update unread count ke dokter
-      if (chatSession.dokter?.user?.id_user) {
-        sendUnreadCountUpdateToAdmin(
-          chatSession.dokter.user.id_user,
-          id_chat,
-          unreadCount
-        );
-      }
+      // Kirim update unread count ke dokter (broadcast ke semua user dengan role dokter)
+      sendUnreadCountUpdateToAdmin("dokter", id_chat, unreadCount);
 
       // Update chat untuk pasien
-      if (chatSession.pasien?.user?.id_user) {
-        sendChatUpdateToPatient(chatSession.pasien.user.id_user, id_chat);
+      if (chatSession.pasien?.user?.id) {
+        sendChatUpdateToPatient(chatSession.pasien.user.id, id_chat);
       }
     } else if (user.role === "pasien") {
       // Pasien menandai pesan dari dokter sebagai dibaca
@@ -711,18 +688,12 @@ exports.markAllMessagesAsRead = async (req, res) => {
       });
 
       // Kirim update unread count ke pasien
-      if (chatSession.pasien?.user?.id_user) {
-        sendUnreadCountUpdate(
-          chatSession.pasien.user.id_user,
-          id_chat,
-          unreadCount
-        );
+      if (chatSession.pasien?.user?.id) {
+        sendUnreadCountUpdate(chatSession.pasien.user.id, id_chat, unreadCount);
       }
 
-      // Update chat untuk dokter
-      if (chatSession.dokter?.user?.id_user) {
-        sendChatUpdateToAdmin(chatSession.dokter.user.id_user, id_chat);
-      }
+      // Update chat untuk dokter (broadcast ke semua user dengan role dokter)
+      sendChatUpdateToAdmin("dokter", id_chat);
     } else {
       return res.status(403).json({
         success: false,
