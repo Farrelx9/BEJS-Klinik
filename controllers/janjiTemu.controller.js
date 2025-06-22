@@ -248,6 +248,7 @@ exports.confirmJanjiTemu = async (req, res) => {
     const updated = await prisma.janjiTemu.update({
       where: { id_janji: id },
       data: { status },
+      include: { pasien: true },
     });
 
     let judulNotif = "";
@@ -290,9 +291,27 @@ exports.confirmJanjiTemu = async (req, res) => {
       }
     }
 
+    // Format response agar konsisten
     return res.json({
       success: true,
-      data: updated,
+      data: {
+        id_janji: updated.id_janji,
+        id_pasien: updated.id_pasien,
+        nama_pasien: updated.pasien?.nama || "-",
+        noTelp_pasien: updated.pasien?.noTelp || "-",
+        tanggal_waktu: updated.tanggal_waktu
+          ? new Date(updated.tanggal_waktu).toISOString().split("T")[0]
+          : "-",
+        waktu_janji: updated.tanggal_waktu
+          ? new Date(updated.tanggal_waktu).toLocaleTimeString("id-ID")
+          : "-",
+        keluhan: updated.keluhan || "-",
+        status: updated.status || "-",
+        pembayaran: updated.pembayaran || "-",
+        createdAt: updated.createdAt
+          ? new Date(updated.createdAt).toISOString()
+          : "-",
+      },
       notificationSent: notifSuccess,
     });
   } catch (error) {
@@ -449,6 +468,7 @@ exports.updatePayment = async (req, res) => {
   try {
     const janjiTemu = await prisma.janjiTemu.findUnique({
       where: { id_janji: id },
+      include: { pasien: true },
     });
 
     if (
@@ -465,10 +485,31 @@ exports.updatePayment = async (req, res) => {
     const updated = await prisma.janjiTemu.update({
       where: { id_janji: id },
       data: { pembayaran },
+      include: { pasien: true },
     });
 
-    // Pastikan respons berisi data janji temu terbaru
-    res.json({ success: true, data: updated });
+    // Format response agar konsisten
+    res.json({
+      success: true,
+      data: {
+        id_janji: updated.id_janji,
+        id_pasien: updated.id_pasien,
+        nama_pasien: updated.pasien?.nama || "-",
+        noTelp_pasien: updated.pasien?.noTelp || "-",
+        tanggal_waktu: updated.tanggal_waktu
+          ? new Date(updated.tanggal_waktu).toISOString().split("T")[0]
+          : "-",
+        waktu_janji: updated.tanggal_waktu
+          ? new Date(updated.tanggal_waktu).toLocaleTimeString("id-ID")
+          : "-",
+        keluhan: updated.keluhan || "-",
+        status: updated.status || "-",
+        pembayaran: updated.pembayaran || "-",
+        createdAt: updated.createdAt
+          ? new Date(updated.createdAt).toISOString()
+          : "-",
+      },
+    });
   } catch (error) {
     console.error(error);
     res
