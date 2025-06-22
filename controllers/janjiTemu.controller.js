@@ -426,6 +426,7 @@ exports.getBookedJanjiTemu = async (req, res) => {
         : "-",
       keluhan: app.keluhan || "-",
       status: app.status || "-",
+      pembayaran: app.pembayaran || "-",
       createdAt: app.createdAt ? new Date(app.createdAt).toISOString() : "-",
     }));
 
